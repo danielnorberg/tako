@@ -217,7 +217,7 @@ def main():
 
 if __name__ == "__main__":
 	# import hotshot
-	# prof = hotshot.Profile("ConsistentHash.prof")
+	# prof = hotshot.Profile("hotshot.prof")
 	# prof.runcall(main)
 	# prof.close()
 	main()
