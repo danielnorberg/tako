@@ -1,17 +1,16 @@
 import os
-import kyotocabinet as kc
+import tc
 
 class KeyValueStore(object):
 	"""docstring for KeyValueStore"""
-	def __init__(self, db_file_name="key_value_db"):
+	def __init__(self, db_file_path="key_value_db.tch"):
 		super(KeyValueStore, self).__init__()
-		self.db_file_path = db_file_name + '.kch'
-		self.db = kc.DB()
+		self.db_file_path = db_file_path
+		self.db = tc.HDB()
 
 	def open(self):
 		"""docstring for open"""
-		if not self.db.open(self.db_file_path, kc.DB.OREADER | kc.DB.OWRITER | kc.DB.OCREATE):
-			raise Exception('KeyValueStore open error', self.db.error())
+		self.db.open(self.db_file_path, tc.HDBOREADER | tc.HDBOWRITER | tc.HDBOCREAT)
 
 	def delete(self):
 		"""docstring for delete"""
@@ -26,7 +25,7 @@ class KeyValueStore(object):
 
 	def set(self, key, value):
 		"""docstring for set"""
-		self.db.set(key, value)
+		self.db.put(key, value)
 
 	def get(self, key):
 		"""docstring for get"""
