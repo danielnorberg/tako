@@ -1,3 +1,0 @@
-[submodule "vendor/tc"]
-	path = vendor/tc
-	url = git://github.com/rsms/tc.git
