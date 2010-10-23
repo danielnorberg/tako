@@ -1,0 +1,3 @@
+[submodule "vendor/tc"]
+	path = vendor/tc
+	url = git@github.com:danielnorberg/tc.git
