@@ -20,6 +20,7 @@ class ConsistentHash(object):
 			self.points.append((point, bucket))
 
 	def _update_point_index(self):
+		"""docstring for _update_point_index"""
 		self.points.sort()
 		self.point_index = [point[0] for point in self.points]
 
@@ -67,14 +68,14 @@ class ConsistentHash(object):
 		return int(key_hash.hexdigest()[:8], 16)
 
 	def generate_points(self, keys):
-		"""docstring for generate_point"""
+		"""docstring for generate_points"""
 		key_hash = hashlib.sha256()
 		for key in keys:
 			key_hash.update(key)
 			yield int(key_hash.hexdigest()[:8], 16)
 
 	def key_migration_mapping(self, keys, target):
-		"""docstring for migrate"""
+		"""docstring for key_migration_mapping"""
 		migration_mapping = {}
 		for	key in keys:
 			source_buckets = self.find_buckets(key)
@@ -123,16 +124,18 @@ class ConsistentHash(object):
 		return False
 
 	def key_in_ranges(self, key, bucket_ranges):
+		"""docstring for key_in_ranges"""
 		return self.point_in_ranges(self.generate_point(key), bucket_ranges)
 
 	def points_in_bucket(self, points, bucket):
+		"""docstring for points_in_bucket"""
 		bucket_ranges = self.ranges_for_bucket(bucket)
 		for point in points:
 			if self.point_in_ranges(point, bucket_ranges):
 				yield point
 
 	def keys_in_bucket(self, keys, bucket):
-		"""docstring for generate_key_set_for_bucket"""
+		"""docstring for keys_in_bucket"""
 		bucket_ranges = self.ranges_for_bucket(bucket)
 		for key in keys:
 			if self.key_in_ranges(key, bucket_ranges):
