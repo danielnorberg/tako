@@ -2,9 +2,7 @@ import hashlib
 import bisect
 
 class ConsistentHash(object):
-	"""Implements a consistent hash
-	http://www.tomkleinpeter.com/2008/03/17/programmers-toolbox-part-3-consistent-hashing/
-	"""
+	"""Implements a consistent hash"""
 	def __init__(self, points_per_bucket = 143, buckets_per_key = 3):
 		super(ConsistentHash, self).__init__()
 		self.points_per_bucket = points_per_bucket
@@ -63,7 +61,8 @@ class ConsistentHash(object):
 
 	def generate_point(self, key):
 		"""docstring for generate_point"""
-		key_hash = hashlib.sha256()
+		# Using md5 as it is slightly faster than sha
+		key_hash = hashlib.md5()
 		key_hash.update(key)
 		return int(key_hash.hexdigest()[:8], 16)
 
@@ -110,36 +109,34 @@ class ConsistentHash(object):
 		bucket_ranges = [self.range_for_point(i) for i, (p, b) in enumerate(self.points) if b == bucket]
 		return bucket_ranges
 
-	def point_in_ranges(self, point, bucket_ranges):
-		"""docstring for point_in_ranges"""
-		for a, b in bucket_ranges:
-			if a == b:
-				return True
-			elif a < b:
-				if point > a and point <= b:
-					return True
-			else: # a > b
-				if point > a or point <= b:
-					return True
-		return False
-
-	def key_in_ranges(self, key, bucket_ranges):
-		"""docstring for key_in_ranges"""
-		return self.point_in_ranges(self.generate_point(key), bucket_ranges)
-
-	def points_in_bucket(self, points, bucket):
-		"""docstring for points_in_bucket"""
+	def _keys_in_bucket(self, sorted_keys, sorted_key_points, bucket):
+		"""docstring for _keys_in_bucket"""
 		bucket_ranges = self.ranges_for_bucket(bucket)
-		for point in points:
-			if self.point_in_ranges(point, bucket_ranges):
-				yield point
+		bucket_keys = []
+		for start, end in bucket_ranges:
+			if start == end:
+				bucket_keys = keys
+				break
+			elif start < end:
+				start_key_index = bisect.bisect(sorted_key_points, start)
+				end_key_index = bisect.bisect(sorted_key_points, end)
+				range_keys = sorted_keys[start_key_index:end_key_index]
+				bucket_keys.extend(range_keys)
+			else: # start > end
+				start_key_index = bisect.bisect(sorted_key_points, start)
+				end_key_index = bisect.bisect(sorted_key_points, end)
+				range_keys = sorted_keys[start_key_index:] + sorted_keys[:end_key_index]
+				bucket_keys.extend(range_keys)
+		return bucket_keys
 
 	def keys_in_bucket(self, keys, bucket):
 		"""docstring for keys_in_bucket"""
-		bucket_ranges = self.ranges_for_bucket(bucket)
-		for key in keys:
-			if self.key_in_ranges(key, bucket_ranges):
-				yield key
+		batch_size = 5000
+		bucket_keys = []
+		for i in range(0, len(keys), batch_size):
+			sorted_key_points, sorted_keys = zip(*sorted((self.generate_point(key), key) for key in keys[i:i+batch_size]))
+			bucket_keys.extend(self._keys_in_bucket(sorted_keys, sorted_key_points, bucket))
+		return bucket_keys
 
 def randomSha(seed):
 	sha = hashlib.sha256()
@@ -162,9 +159,10 @@ def testRanging():
 	y = 65
 	assert(ch.ranges_for_bucket(1) == [(50, 10), (20, 40)])
 	assert(ch.ranges_for_bucket(2) == [(60, 20), (30, 50)])
-	assert(set(ch.points_in_bucket(points=[x,y],bucket=1)) == set([y]))
-	assert(set(ch.points_in_bucket(points=[x,y],bucket=2)) == set([x, y]))
-	assert(set(ch.points_in_bucket(points=[x,y],bucket=3)) == set([x]))
+	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=1)) == set(['y']))
+	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=2)) == set(['x', 'y']))
+	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=3)) == set(['x']))
+
 
 def testBucketing():
 	ch = ConsistentHash(buckets_per_key = 5)
@@ -174,11 +172,18 @@ def testBucketing():
 		buckets_for_key = ch.find_buckets(str(key))
 		assert(len(buckets_for_key) == 5)
 
+def testPerf():
+	bs = ['b%02d' % i for i in xrange(0, 9)]
+	keys = [str(i) for i in range(0, 10000000)]
+	ch = ConsistentHash()
+	ch.add_buckets(bs)
+	ch.keys_in_bucket(keys=keys, bucket=bs[0])
+
 def testMigration():
 	"""docstring for testMigration"""
 	bs1 = ['b%02d' % i for i in xrange(0, 9)]
 	bs2 = ['b%02d' % i for i in xrange(0, 16)]
-	keys = ['/path/to/key/%s' % randomSha(i) for i in xrange(0, 1000)]
+	keys = ['/path/to/key/%s' % randomSha(i) for i in range(0, 10000)]
 	bpk1 = 3
 	bpk2 = 4
 	buckets_per_key_delta = bpk2 - bpk1
@@ -214,10 +219,12 @@ def main():
 	testRanging()
 	testBucketing()
 	testMigration()
+	# testPerf()
+
 
 if __name__ == "__main__":
-	# import hotshot
-	# prof = hotshot.Profile("hotshot.prof")
-	# prof.runcall(main)
-	# prof.close()
-	main()
+	import hotshot
+	prof = hotshot.Profile("hotshot.prof")
+	prof.runcall(main)
+	prof.close()
+	# main()
