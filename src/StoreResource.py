@@ -1,12 +1,12 @@
 from twisted.web import resource
-import KeyValueStore
+import Store
 import simplejson as json
 
-class KeyValueStoreResource(resource.Resource):
+class StoreResource(resource.Resource):
 	isLeaf = True
 
 	def __init__(self):
-		self.store = KeyValueStore.KeyValueStore()
+		self.store = Store.Store()
 
 	def render_GET(self):
 		"""docstring for render_GET"""

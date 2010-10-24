@@ -1,10 +1,10 @@
 import os
 import tc
 
-class KeyValueStore(object):
-	"""docstring for KeyValueStore"""
+class Store(object):
+	"""docstring for Store"""
 	def __init__(self, db_file_path="key_value_db.tch"):
-		super(KeyValueStore, self).__init__()
+		super(Store, self).__init__()
 		self.db_file_path = db_file_path
 		self.db = tc.HDB()
 
@@ -32,7 +32,7 @@ class KeyValueStore(object):
 		return self.db.get(key)
 
 def testStore():
-	store = KeyValueStore()
+	store = Store()
 	store.delete()
 	store.open()
 	store.set("foo", "bar")

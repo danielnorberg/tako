@@ -1,6 +1,6 @@
 import platform
 from twisted.web import server, resource
-import KeyValueStoreResource
+import StoreResource
 
 if platform.system() == 'Linux':
 	from twisted.internet import epollreactor
@@ -8,6 +8,18 @@ if platform.system() == 'Linux':
 
 from twisted.internet import reactor
 
-site = server.Site(KeyValueStoreResource.KeyValueStoreResource())
-reactor.listenTCP(8080, site)
-reactor.run()
+class StoreServer(object):
+	"""docstring for KeyValueStoreServer"""
+	def __init__(self, port=4711):
+		super(StoreServer, self).__init__()
+		self.port = port
+
+	def start(self):
+		"""docstring for start"""
+		site = server.Site(StoreResource.StoreResource())
+		reactor.listenTCP(self.port, site)
+		reactor.run()
+
+if __name__ == '__main__':
+	storeServer = StoreServer()
+	storeServer.start()
