@@ -32,14 +32,14 @@ class ConsistentHash(object):
 			self._add_bucket(bucket)
 		self._update_point_index()
 
-	def find_point(self, key):
-		"""docstring for find_point"""
+	def find_bucket_point(self, key):
+		"""docstring for find_bucket_point"""
 		key_point = self.generate_point(key)
 		i = bisect.bisect(self.point_index, key_point) % len(self.points)
 		return i, self.points[i]
 
-	def points_from(self, index, reverse=False):
-		"""docstring for points_from"""
+	def bucket_points_from_index(self, index, reverse=False):
+		"""docstring for bucket_points_from_index"""
 		delta = -1 if reverse else 1
 		len_points = len(self.points)
 		while True:
@@ -51,9 +51,9 @@ class ConsistentHash(object):
 	def find_buckets(self, key):
 		"""docstring for find_buckets"""
 		buckets = set()
-		i, (key_point, key_bucket) = self.find_point(key)
+		i, (key_point, key_bucket) = self.find_bucket_point(key)
 		buckets.add(key_bucket)
-		for	j, point, bucket in self.points_from(i):
+		for	j, point, bucket in self.bucket_points_from_index(i):
 			if len(buckets) >= self.buckets_per_key or len(buckets) >= len(self.buckets):
 				break
 			buckets.add(bucket)
@@ -61,7 +61,6 @@ class ConsistentHash(object):
 
 	def generate_point(self, key):
 		"""docstring for generate_point"""
-		# Using md5 as it is slightly faster than sha
 		key_hash = hashlib.md5()
 		key_hash.update(key)
 		return int(key_hash.hexdigest()[:8], 16)
@@ -99,7 +98,7 @@ class ConsistentHash(object):
 		buckets = set()
 		index_point, index_bucket = self.points[index]
 		buckets.add(index_bucket)
-		for i, point, bucket in self.points_from(index, reverse=True):
+		for i, point, bucket in self.bucket_points_from_index(index, reverse=True):
 			if len(buckets) >= self.buckets_per_key or len(buckets) >= len(self.buckets):
 				return (point, index_point)
 			buckets.add(bucket)
