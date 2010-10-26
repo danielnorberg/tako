@@ -13,7 +13,7 @@ class ConsistentHash(object):
 	def _add_bucket(self, bucket):
 		"""docstring for _add_bucket"""
 		self.buckets.append(bucket)
-		for i in xrange(1, self.points_per_bucket):
+		for i in xrange(0, self.points_per_bucket):
 			point = self.generate_point("%s-%s" % (bucket, i))
 			self.points.append((point, bucket))
 
