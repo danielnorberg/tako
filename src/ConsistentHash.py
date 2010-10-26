@@ -128,12 +128,15 @@ class ConsistentHash(object):
 				bucket_keys.extend(range_keys)
 		return bucket_keys
 
-	def keys_in_bucket(self, keys, bucket):
+	def keys_in_bucket(self, keys, bucket, points=None):
 		"""docstring for keys_in_bucket"""
 		batch_size = 5000
 		bucket_keys = []
 		for i in range(0, len(keys), batch_size):
-			sorted_key_points, sorted_keys = zip(*sorted((self.generate_point(key), key) for key in keys[i:i+batch_size]))
+			if points:
+				sorted_key_points, sorted_keys = zip(*sorted(zip(points[i:i+batch_size],keys[i:i+batch_size])))
+			else:
+				sorted_key_points, sorted_keys = zip(*sorted((self.generate_point(key), key) for key in keys[i:i+batch_size]))
 			bucket_keys.extend(self._keys_in_bucket(sorted_keys, sorted_key_points, bucket))
 		return bucket_keys
 
@@ -175,8 +178,9 @@ def testPerf():
 	bs = ['b%02d' % i for i in xrange(0, 9)]
 	keys = [str(i) for i in range(0, 10000000)]
 	ch = ConsistentHash()
+	points = list(ch.generate_points(keys=keys))
 	ch.add_buckets(bs)
-	ch.keys_in_bucket(keys=keys, bucket=bs[0])
+	ch.keys_in_bucket(keys=keys, bucket=bs[0], points=points)
 
 def testMigration():
 	"""docstring for testMigration"""
@@ -191,14 +195,16 @@ def testMigration():
 	ch2 = ConsistentHash(buckets_per_key=bpk2)
 	ch2.add_buckets(bs2)
 
+	points = list(ch1.generate_points(keys))
+
 	print 'Before Migration'
 	for s in ch1.buckets:
-		print 'Bucket %s: %s keys' % (s, len(list(ch1.keys_in_bucket(keys=keys, bucket=s))))
+		print 'Bucket %s: %s keys, %s neighbours' % (s, len(list(ch1.keys_in_bucket(keys=keys, bucket=s, points=points))), len(ch1.find_neighbour_buckets(bucket=s)))
 	print
 
 	print 'After Migration'
 	for s in ch2.buckets:
-		print 'Bucket %s: %s keys' % (s, len(list(ch2.keys_in_bucket(keys=keys, bucket=s))))
+		print 'Bucket %s: %s keys, %s neighbours' % (s, len(list(ch2.keys_in_bucket(keys=keys, bucket=s, points=points))), len(ch2.find_neighbour_buckets(bucket=s)))
 	print
 
 	key_migration_mapping = ch1.key_migration_mapping(keys=keys, target=ch2)
@@ -209,7 +215,7 @@ def testMigration():
 
 	bucket_migration_mapping = ch1.bucket_migration_mapping(keys=keys, target=ch2)
 	for target_bucket, transfer_list in sorted(bucket_migration_mapping.iteritems()):
-		print 'Bucket %s is assigned %d new keys for a total of %d keys' % (target_bucket, len(transfer_list), len(list(ch2.keys_in_bucket(keys=keys, bucket=target_bucket))))
+		print 'Bucket %s is assigned %d new keys for a total of %d keys' % (target_bucket, len(transfer_list), len(list(ch2.keys_in_bucket(keys=keys, bucket=target_bucket, points=points))))
 		for key, source_buckets in sorted(transfer_list):
 			assert(len(source_buckets) >= ch1.buckets_per_key)
 			# print '\t%s <= %s' % (key, sorted(source_buckets))
