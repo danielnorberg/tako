@@ -59,6 +59,19 @@ class ConsistentHash(object):
 			buckets.add(bucket)
 		return buckets
 
+	def find_neighbour_buckets(self, bucket):
+		"""docstring for find_neighbour_buckets"""
+		neighbour_buckets = set()
+		bucket_points = [(i, p, b) for i, (p, b) in enumerate(self.points) if b == bucket]
+		for i, p, b in bucket_points:
+			point_neighbour_buckets = set()
+			for j, neighbout_bucket_point, neighbour_bucket in self.bucket_points_from_index(i, reverse=True):
+				point_neighbour_buckets.add(neighbour_bucket)
+				if len(point_neighbour_buckets) >= self.buckets_per_key or len(point_neighbour_buckets) >= len(self.buckets):
+					break
+			neighbour_buckets.update(point_neighbour_buckets)
+		return neighbour_buckets
+
 	def generate_point(self, key):
 		"""docstring for generate_point"""
 		key_hash = hashlib.md5()
@@ -164,7 +177,9 @@ def testRanging():
 	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=1)) == set(['y']))
 	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=2)) == set(['x', 'y']))
 	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=3)) == set(['x']))
-
+	assert(ch.find_neighbour_buckets(1) == set([2, 3]))
+	assert(ch.find_neighbour_buckets(2) == set([1, 3]))
+	assert(ch.find_neighbour_buckets(3) == set([1, 2]))
 
 def testBucketing():
 	ch = ConsistentHash(buckets_per_key = 5)
@@ -225,7 +240,6 @@ def main():
 	testBucketing()
 	testMigration()
 	# testPerf()
-
 
 if __name__ == "__main__":
 	import hotshot
