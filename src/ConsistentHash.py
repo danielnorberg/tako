@@ -3,7 +3,7 @@ import bisect
 
 class ConsistentHash(object):
 	"""Implements a consistent hash"""
-	def __init__(self, points_per_bucket = 143, buckets_per_key = 3):
+	def __init__(self, points_per_bucket = 120, buckets_per_key = 3):
 		super(ConsistentHash, self).__init__()
 		self.points_per_bucket = points_per_bucket
 		self.buckets = []
