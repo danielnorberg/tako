@@ -1,20 +1,22 @@
 import hashlib
 import bisect
+import unittest, testcase
 
 class ConsistentHash(object):
 	"""Implements a consistent hash"""
-	def __init__(self, points_per_bucket = 120, buckets_per_key = 3):
+	def __init__(self, buckets = [], points_per_bucket = 120, buckets_per_key = 3):
 		super(ConsistentHash, self).__init__()
 		self.points_per_bucket = points_per_bucket
 		self.buckets = []
 		self.points = []
 		self.buckets_per_key = buckets_per_key
+		self.add_buckets(buckets)
 
 	def _add_bucket(self, bucket):
 		"""docstring for _add_bucket"""
 		self.buckets.append(bucket)
 		for i in xrange(0, self.points_per_bucket):
-			point = self.generate_point("%s-%s" % (bucket, i))
+			point = self.generate_point("%s-%s" % (hash(bucket), i))
 			self.points.append((point, bucket))
 
 	def _update_point_index(self):
@@ -153,97 +155,100 @@ class ConsistentHash(object):
 			bucket_keys.extend(self._keys_in_bucket(sorted_keys, sorted_key_points, bucket))
 		return bucket_keys
 
-def randomSha(seed):
-	sha = hashlib.sha256()
-	sha.update(str(seed))
-	return sha.hexdigest()
+	def __repr__(self):
+		"""docstring for __repr__"""
+		return 'ConsistentHash(buckets_per_key=%d, points_per_pucket=%d)' % (self.buckets_per_key, self.points_per_bucket)
 
-def testRanging():
-	ch = ConsistentHash(buckets_per_key=2)
-	ch.buckets.append(1)
-	ch.buckets.append(2)
-	ch.buckets.append(3)
-	ch.points.append((10, 1))
-	ch.points.append((20, 2))
-	ch.points.append((30, 3))
-	ch.points.append((40, 1))
-	ch.points.append((50, 2))
-	ch.points.append((60, 3))
-	ch._update_point_index()
-	x = 15
-	y = 65
-	assert(ch.ranges_for_bucket(1) == [(50, 10), (20, 40)])
-	assert(ch.ranges_for_bucket(2) == [(60, 20), (30, 50)])
-	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=1)) == set(['y']))
-	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=2)) == set(['x', 'y']))
-	assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=3)) == set(['x']))
-	assert(ch.find_neighbour_buckets(1) == set([2, 3]))
-	assert(ch.find_neighbour_buckets(2) == set([1, 3]))
-	assert(ch.find_neighbour_buckets(3) == set([1, 2]))
+	def __str__(self):
+		"""docstring for __repr__"""
+		return repr(self) + ''.join('\n\t%08x: %s' % (point, str(bucket)) for point, bucket in self.points)
 
-def testBucketing():
-	ch = ConsistentHash(buckets_per_key = 5)
-	buckets = [str(i) for i in xrange(0, 17)]
-	ch.add_buckets(buckets)
-	for	key in xrange(0, 4711):
-		buckets_for_key = ch.find_buckets(str(key))
-		assert(len(buckets_for_key) == 5)
 
-def testPerf():
-	bs = ['b%02d' % i for i in xrange(0, 9)]
-	keys = [str(i) for i in range(0, 10000000)]
-	ch = ConsistentHash()
-	points = list(ch.generate_points(keys=keys))
-	ch.add_buckets(bs)
-	ch.keys_in_bucket(keys=keys, bucket=bs[0], points=points)
+class TestConsistentHash(testcase.TestCase):
+	"""docstring for TestConsistentHash"""
 
-def testMigration():
-	"""docstring for testMigration"""
-	bs1 = ['b%02d' % i for i in xrange(0, 9)]
-	bs2 = ['b%02d' % i for i in xrange(0, 16)]
-	keys = ['/path/to/key/%s' % randomSha(i) for i in range(0, 10000)]
-	bpk1 = 3
-	bpk2 = 4
-	buckets_per_key_delta = bpk2 - bpk1
-	ch1 = ConsistentHash(buckets_per_key=bpk1)
-	ch1.add_buckets(bs1)
-	ch2 = ConsistentHash(buckets_per_key=bpk2)
-	ch2.add_buckets(bs2)
+	def randomSha(self, seed):
+		sha = hashlib.sha256()
+		sha.update(str(seed))
+		return sha.hexdigest()
 
-	points = list(ch1.generate_points(keys))
+	def testRanging(self):
+		ch = ConsistentHash(buckets_per_key=2)
+		ch.buckets.append(1)
+		ch.buckets.append(2)
+		ch.buckets.append(3)
+		ch.points.append((10, 1))
+		ch.points.append((20, 2))
+		ch.points.append((30, 3))
+		ch.points.append((40, 1))
+		ch.points.append((50, 2))
+		ch.points.append((60, 3))
+		ch._update_point_index()
+		x = 15
+		y = 65
+		assert(ch.ranges_for_bucket(1) == [(50, 10), (20, 40)])
+		assert(ch.ranges_for_bucket(2) == [(60, 20), (30, 50)])
+		assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=1)) == set(['y']))
+		assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=2)) == set(['x', 'y']))
+		assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=3)) == set(['x']))
+		assert(ch.find_neighbour_buckets(1) == set([2, 3]))
+		assert(ch.find_neighbour_buckets(2) == set([1, 3]))
+		assert(ch.find_neighbour_buckets(3) == set([1, 2]))
 
-	print 'Before Migration'
-	for s in ch1.buckets:
-		print 'Bucket %s: %s keys, %s neighbours' % (s, len(list(ch1.keys_in_bucket(keys=keys, bucket=s, points=points))), len(ch1.find_neighbour_buckets(bucket=s)))
-	print
+	def testBucketing(self):
+		ch = ConsistentHash(buckets_per_key = 5)
+		buckets = [str(i) for i in xrange(0, 17)]
+		ch.add_buckets(buckets)
+		for	key in xrange(0, 4711):
+			buckets_for_key = ch.find_buckets(str(key))
+			assert(len(buckets_for_key) == 5)
 
-	print 'After Migration'
-	for s in ch2.buckets:
-		print 'Bucket %s: %s keys, %s neighbours' % (s, len(list(ch2.keys_in_bucket(keys=keys, bucket=s, points=points))), len(ch2.find_neighbour_buckets(bucket=s)))
-	print
+	# def testPerf(self):
+	# 	bs = ['b%02d' % i for i in xrange(0, 9)]
+	# 	keys = [str(i) for i in range(0, 10000000)]
+	# 	ch = ConsistentHash()
+	# 	points = list(ch.generate_points(keys=keys))
+	# 	ch.add_buckets(bs)
+	# 	ch.keys_in_bucket(keys=keys, bucket=bs[0], points=points)
 
-	key_migration_mapping = ch1.key_migration_mapping(keys=keys, target=ch2)
-	for key, (source_buckets, deallocated_buckets, target_buckets) in sorted(key_migration_mapping.iteritems()):
-		# print 'Key %s: %s => %s. (%s deallocated)' % (key, sorted(source_buckets), sorted(target_buckets), sorted(deallocated_buckets))
-		assert(len(target_buckets) - len(deallocated_buckets) >= buckets_per_key_delta)
-		assert(len(source_buckets) >= ch1.buckets_per_key)
+	def testMigration(self):
+		"""docstring for testMigration"""
+		bs1 = ['b%02d' % i for i in xrange(0, 9)]
+		bs2 = ['b%02d' % i for i in xrange(0, 16)]
+		keys = ['/path/to/key/%s' % self.randomSha(i) for i in range(0, 10000)]
+		bpk1 = 3
+		bpk2 = 4
+		buckets_per_key_delta = bpk2 - bpk1
+		ch1 = ConsistentHash(buckets_per_key=bpk1)
+		ch1.add_buckets(bs1)
+		ch2 = ConsistentHash(buckets_per_key=bpk2)
+		ch2 = ConsistentHash(buckets_per_key=bpk2)
+		ch2.add_buckets(bs2)
 
-	bucket_migration_mapping = ch1.bucket_migration_mapping(keys=keys, target=ch2)
-	for target_bucket, transfer_list in sorted(bucket_migration_mapping.iteritems()):
-		print 'Bucket %s is assigned %d new keys for a total of %d keys' % (target_bucket, len(transfer_list), len(list(ch2.keys_in_bucket(keys=keys, bucket=target_bucket, points=points))))
-		for key, source_buckets in sorted(transfer_list):
+		points = list(ch1.generate_points(keys))
+
+		print 'Before Migration'
+		for s in ch1.buckets:
+			print 'Bucket %s: %s keys, %s neighbours' % (s, len(list(ch1.keys_in_bucket(keys=keys, bucket=s, points=points))), len(ch1.find_neighbour_buckets(bucket=s)))
+		print
+
+		print 'After Migration'
+		for s in ch2.buckets:
+			print 'Bucket %s: %s keys, %s neighbours' % (s, len(list(ch2.keys_in_bucket(keys=keys, bucket=s, points=points))), len(ch2.find_neighbour_buckets(bucket=s)))
+		print
+
+		key_migration_mapping = ch1.key_migration_mapping(keys=keys, target=ch2)
+		for key, (source_buckets, deallocated_buckets, target_buckets) in sorted(key_migration_mapping.iteritems()):
+			# print 'Key %s: %s => %s. (%s deallocated)' % (key, sorted(source_buckets), sorted(target_buckets), sorted(deallocated_buckets))
+			assert(len(target_buckets) - len(deallocated_buckets) >= buckets_per_key_delta)
 			assert(len(source_buckets) >= ch1.buckets_per_key)
-			# print '\t%s <= %s' % (key, sorted(source_buckets))
 
-def main():
-	testRanging()
-	testBucketing()
-	testMigration()
-	# testPerf()
+		bucket_migration_mapping = ch1.bucket_migration_mapping(keys=keys, target=ch2)
+		for target_bucket, transfer_list in sorted(bucket_migration_mapping.iteritems()):
+			print 'Bucket %s is assigned %d new keys for a total of %d keys' % (target_bucket, len(transfer_list), len(list(ch2.keys_in_bucket(keys=keys, bucket=target_bucket, points=points))))
+			for key, source_buckets in sorted(transfer_list):
+				assert(len(source_buckets) >= ch1.buckets_per_key)
+				# print '\t%s <= %s' % (key, sorted(source_buckets))
 
 if __name__ == "__main__":
-	import hotshot
-	prof = hotshot.Profile("hotshot.prof")
-	prof.runcall(main)
-	prof.close()
-	# main()
+	unittest.main()
