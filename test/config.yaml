@@ -1,0 +1,15 @@
+%YAML 1.1
+---
+active_deployment: 1
+target_deployment: 2
+deployments:
+    1:
+        hash:
+            buckets_per_key: 2
+        buckets:
+            1:
+                1: [localhost, 4711]
+                2: [localhost, 4712]
+            2:
+                3: [localhost, 4713]
+                4: [localhost, 4714]

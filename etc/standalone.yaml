@@ -1,0 +1,8 @@
+%YAML 1.1
+---
+active_deployment: standalone
+deployments:
+    standalone:
+        buckets:
+            1:
+                1: [localhost, 4711]
