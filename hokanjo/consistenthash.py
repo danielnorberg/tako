@@ -186,14 +186,14 @@ class TestConsistentHash(testcase.TestCase):
 		ch._update_point_index()
 		x = 15
 		y = 65
-		assert(ch.ranges_for_bucket(1) == [(50, 10), (20, 40)])
-		assert(ch.ranges_for_bucket(2) == [(60, 20), (30, 50)])
-		assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=1)) == set(['y']))
-		assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=2)) == set(['x', 'y']))
-		assert(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=3)) == set(['x']))
-		assert(ch.find_neighbour_buckets(1) == set([2, 3]))
-		assert(ch.find_neighbour_buckets(2) == set([1, 3]))
-		assert(ch.find_neighbour_buckets(3) == set([1, 2]))
+		self.assertEqual(ch.ranges_for_bucket(1), [(50, 10), (20, 40)])
+		self.assertEqual(ch.ranges_for_bucket(2), [(60, 20), (30, 50)])
+		self.assertEqual(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=1)), set(['y']))
+		self.assertEqual(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=2)), set(['x', 'y']))
+		self.assertEqual(set(ch._keys_in_bucket(sorted_keys=['x', 'y'], sorted_key_points=[x, y], bucket=3)), set(['x']))
+		self.assertEqual(ch.find_neighbour_buckets(1), set([2, 3]))
+		self.assertEqual(ch.find_neighbour_buckets(2), set([1, 3]))
+		self.assertEqual(ch.find_neighbour_buckets(3), set([1, 2]))
 
 	def testBucketing(self):
 		ch = ConsistentHash(buckets_per_key = 5)
@@ -201,7 +201,7 @@ class TestConsistentHash(testcase.TestCase):
 		ch.add_buckets(buckets)
 		for	key in xrange(0, 4711):
 			buckets_for_key = ch.find_buckets(str(key))
-			assert(len(buckets_for_key) == 5)
+			self.assertEqual(len(buckets_for_key), 5)
 
 	# def testPerf(self):
 	# 	bs = ['b%02d' % i for i in xrange(0, 9)]
@@ -239,16 +239,14 @@ class TestConsistentHash(testcase.TestCase):
 
 		key_migration_mapping = ch1.key_migration_mapping(keys=keys, target=ch2)
 		for key, (source_buckets, deallocated_buckets, target_buckets) in sorted(key_migration_mapping.iteritems()):
-			# print 'Key %s: %s => %s. (%s deallocated)' % (key, sorted(source_buckets), sorted(target_buckets), sorted(deallocated_buckets))
-			assert(len(target_buckets) - len(deallocated_buckets) >= buckets_per_key_delta)
-			assert(len(source_buckets) >= ch1.buckets_per_key)
+			self.assertTrue(len(target_buckets) - len(deallocated_buckets) >= buckets_per_key_delta)
+			self.assertTrue(len(source_buckets) >= ch1.buckets_per_key)
 
 		bucket_migration_mapping = ch1.bucket_migration_mapping(keys=keys, target=ch2)
 		for target_bucket, transfer_list in sorted(bucket_migration_mapping.iteritems()):
 			print 'Bucket %s is assigned %d new keys for a total of %d keys' % (target_bucket, len(transfer_list), len(list(ch2.keys_in_bucket(keys=keys, bucket=target_bucket, points=points))))
 			for key, source_buckets in sorted(transfer_list):
-				assert(len(source_buckets) >= ch1.buckets_per_key)
-				# print '\t%s <= %s' % (key, sorted(source_buckets))
+				self.assertTrue(len(source_buckets) >= ch1.buckets_per_key)
 
 if __name__ == "__main__":
 	unittest.main()

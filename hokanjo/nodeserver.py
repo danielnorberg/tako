@@ -119,7 +119,7 @@ def main():
 	parser = argparse.ArgumentParser(description="Hokanjo Node")
 	parser.add_argument('-id','--id', help='Server id. Default = 1', type=int, default=1)
 	parser.add_argument('-cfg','--config', help='Config file.', type=argparse.FileType('r'), default='etc/standalone.yaml')
-	parser.add_argument('-f','--file', help='Database file. Default = data.tch', default='data/standalone.tch')
+	parser.add_argument('-f','--file', help='Database file. Default = data.tch', default='var/data/standalone.tch')
 
 	try:
 		args = parser.parse_args()
@@ -148,8 +148,14 @@ def main():
 	print 'Config file: %s' % (args.config and args.config.name)
 	print 'Serving up %s on port %d...' % (args.file, configuration.active_deployment.nodes[args.id].port)
 
-	server = NodeServer(args.id, args.file, configuration)
-	server.serve()
+	try:
+		server = NodeServer(args.id, args.file, configuration)
+		server.serve()
+	except KeyboardInterrupt:
+		pass
+
+	print
+	print 'Exiting...'
 
 if __name__ == '__main__':
 	import paths
