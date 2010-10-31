@@ -1,6 +1,7 @@
 import logging.handlers
 import logging
 import os
+import pprint
 
 def whoami():
     import sys
@@ -9,6 +10,13 @@ def whoami():
 def callersname():
     import sys
     return sys._getframe(2).f_code.co_name
+
+def pp():
+	return pprint.PrettyPrinter(indent=4)
+
+def pformat():
+	"""docstring for pformat"""
+	pass
 
 def configure_logging(appname):
 	formatter = logging.Formatter("%(asctime)-15s %(levelname)s (%(process)d) %(filename)s:%(lineno)d %(funcName)s(): %(message)s")

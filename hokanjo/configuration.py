@@ -25,6 +25,10 @@ class Node(object):
 		"""docstring for store_url"""
 		return 'http://%s:%d/store/' % (self.address, self.port)
 
+	def stat_url(self):
+		"""docstring for stat_url"""
+		return 'http://%s:%d/stat/' % (self.address, self.port)
+
 class Bucket(object):
 	"""docstring for Bucket"""
 	def __init__(self, bucket_id, nodes):
@@ -55,8 +59,9 @@ class Deployment(object):
 		self.buckets = dict((bucket_id, Bucket(bucket_id, dict((node_id, Node(node_id, bucket_id, address, port)) for node_id, (address, port) in bucket.iteritems()))) \
 							for bucket_id, bucket in specification['buckets'].iteritems())
 		self.nodes = dict((node_id, node) for bucket in self.buckets.itervalues() for node_id, node in bucket.nodes.iteritems())
-		hash_configuration = 'hash' in specification and specification['hash'] or {}
+		hash_configuration = specification.get('hash', {})
 		self.consistent_hash = ConsistentHash(self.buckets.values(), **hash_configuration)
+		self.read_repair_enabled = specification.get('read_repair_enabled', True)
 
 	def siblings(self, node_id):
 		"""docstring for siblings"""
