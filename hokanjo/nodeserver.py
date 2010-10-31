@@ -233,6 +233,8 @@ class NodeServer(object):
 			older_nodes = [node for (remote_timestamp, node) in older]
 			self.propagate(key, value, timestamp, older_nodes)
 
+		return value, timestamp
+
 	def handle_request(self, env, start_response):
 		# logging.debug('env: %s', debug.pp().pformat(env))
 		method = env['REQUEST_METHOD']

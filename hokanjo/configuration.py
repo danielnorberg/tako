@@ -61,7 +61,7 @@ class Deployment(object):
 		self.nodes = dict((node_id, node) for bucket in self.buckets.itervalues() for node_id, node in bucket.nodes.iteritems())
 		hash_configuration = specification.get('hash', {})
 		self.consistent_hash = ConsistentHash(self.buckets.values(), **hash_configuration)
-		self.read_repair_enabled = specification.get('read_repair_enabled', True)
+		self.read_repair_enabled = specification.get('read_repair', True)
 
 	def siblings(self, node_id):
 		"""docstring for siblings"""
