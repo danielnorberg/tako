@@ -19,6 +19,12 @@ class BadRequest(object):
 		super(BadRequest, self).__init__()
 		self.description = description
 
+class BadRequest(object):
+	"""docstring for BadRequest"""
+	def __init__(self, description=''):
+		super(BadRequest, self).__init__()
+		self.description = description
+
 	def __str__(self):
 		"""docstring for __str__"""
 		return repr(self)
