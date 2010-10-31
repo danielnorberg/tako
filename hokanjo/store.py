@@ -2,7 +2,11 @@ import tc
 import os, unittest, tempfile
 import logging
 import testcase
+import struct
+import time
 
+KEY_PREFIX = 'k'
+TIME_PREFIX = 't'
 
 class Store(object):
 	"""docstring for Store"""
@@ -19,32 +23,39 @@ class Store(object):
 		"""docstring for close"""
 		self.db.close()
 
-	def set(self, key, value):
+	def set(self, key, value, timestamp=None):
 		"""docstring for set"""
-		logging.debug('%s:%s', repr(key), repr(value))
-		self.db.put(key, value)
+		timestamp = timestamp or time.time()
+		logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), repr(timestamp))
+		data = struct.pack('d', timestamp) + value
+		self.db.put(key, data)
+		return timestamp
 
 	def get(self, key):
 		"""docstring for get"""
 		logging.debug('%s', repr(key))
+		value = None
+		timestamp = None
 		try:
-			value = self.db.get(key)
-			logging.debug('%s:%s', repr(key), repr(value))
-			return value
+			data = self.db.get(key)
+			(timestamp, ), value = struct.unpack('d', data[0:8]), data[8:]
+			logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), repr(timestamp))
+			return (value, timestamp)
 		except:
-			logging.debug('%s:None', repr(key))
-		return None
+			pass
+		logging.debug('key: %s, value: None, timestamp: None', repr(key))
+		return (None, None)
 
 class StoreTest(testcase.TestCase):
 	def testStore(self):
 		store = Store(filepath = self.tempfile())
 		store.open()
-		store.set("foo", "bar")
-		self.assertEqual(store.get("foo"), "bar")
+		timestamp = store.set("foo", "bar")
+		self.assertEqual(store.get("foo"), ("bar", timestamp))
 		self.assertEqual(store.get("loo"), None)
 		store.close()
 		store.open()
-		self.assertEqual(store.get("foo"), "bar")
+		self.assertEqual(store.get("foo"), ("bar", timestamp))
 		store.close()
 
 if __name__ == '__main__':

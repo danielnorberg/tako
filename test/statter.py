@@ -1,30 +1,31 @@
 import argparse
 import urllib
-import hashlib
 import gevent, gevent.monkey
 gevent.monkey.patch_all()
+
+def hashs(v):
+	return str(hash(str(v)))
 
 def main():
 	"""docstring for main"""
 
-	parser = argparse.ArgumentParser(description="Gevent test reader.")
+	parser = argparse.ArgumentParser(description="Gevent test statter.")
 	parser.add_argument('-a', '--address', default='localhost')
 	parser.add_argument('-p', '--port', type=int, default=8088)
 	parser.add_argument('-l', '--limit', type=int, default=0)
 	parser.add_argument('-d', '--delay', type=float, default=1)
 	args = parser.parse_args()
 
-	base_url = 'http://%s:%d/store/' % (args.address, args.port)
+	base_url = 'http://%s:%d/stat/' % (args.address, args.port)
 
-	print 'reading %s' % base_url
+	print 'statting %s' % base_url
 	i = 0
 	while True:
-		key = str(i)
-		url = base_url + key
-		print 'Key: ', key
+		url = base_url + str(i)
+		print 'Url: ', url
 		try:
 			stream = urllib.urlopen(url)
-			print 'Value: ', repr(stream.read())
+			print 'Body: ', repr(stream.read())
 			print stream.info()
 			stream.close()
 			i += 1

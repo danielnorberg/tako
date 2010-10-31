@@ -1,10 +1,11 @@
 import argparse
-import urllib
+import urllib2
 import gevent, gevent.monkey
 import hashlib
+import time
 gevent.monkey.patch_all()
 
-def hashs(v):
+def sha256(v):
 	sha = hashlib.sha256()
 	sha.update(str(v))
 	return sha.hexdigest()
@@ -24,11 +25,17 @@ def main():
 	print 'feeding %s' % base_url
 	i = 0
 	while True:
+		key = str(i)
+		value = sha256(i)
+		url = base_url + key
 		print i
 		try:
-			url = base_url + str(i)
 			print 'Posting to %s' % url
-			stream = urllib.urlopen(url, hashs(i))
+			headers = {
+				# 'X-TimeStamp':time.time()
+			}
+			request = urllib2.Request(url, value, headers)
+			stream = urllib2.urlopen(request)
 			stream.close()
 			i += 1
 		except IOError:
