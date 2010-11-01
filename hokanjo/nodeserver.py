@@ -1,6 +1,5 @@
 import gevent, gevent.monkey
 gevent.monkey.patch_all()
-from gevent.wsgi import WSGIServer
 import urllib, urllib2
 import argparse
 import yaml
@@ -9,6 +8,7 @@ import debug
 import os, sys
 import email.utils
 import time
+import httpserver
 
 from store import Store
 from configuration import Configuration
@@ -27,7 +27,7 @@ class BadRequest(object):
 		"""docstring for __repr__"""
 		return "BadRequest('%s')" % self.description
 
-class NodeServer(object):
+class NodeServer(httpserver.HttpServer):
 	def __init__(self, node_id, db_file, configuration):
 		super(NodeServer, self).__init__()
 		self.id = node_id
@@ -39,8 +39,11 @@ class NodeServer(object):
 		self.read_repair_enabled = self.configuration.active_deployment.read_repair_enabled
 		self.node = self.deployment.nodes[self.id]
 		self.siblings = self.deployment.siblings(self.id)
-		self.wsgi_server = WSGIServer(('', self.node.port), self.handle_request)
-		self.wsgi_server.serve_forever()
+		self.handlers = (
+			('/store/', {'GET':self.store_GET, 'POST':self.store_POST}),
+			('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
+			('/stat/', {'GET':self.stat_GET}),
+		)
 
 	def quote(self, key):
 		"""docstring for quote"""
@@ -228,31 +231,6 @@ class NodeServer(object):
 			self.propagate(key, value, timestamp, older_nodes)
 
 		return value, timestamp
-
-	def handle_request(self, env, start_response):
-		# logging.debug('env: %s', debug.pp().pformat(env))
-		method = env['REQUEST_METHOD']
-		path = env['PATH_INFO']
-		body = env['wsgi.input']
-		handlers = (
-			('/store/', {'GET':self.store_GET, 'POST':self.store_POST}),
-			('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
-			('/stat/', {'GET':self.stat_GET}),
-		)
-		for prefix, methods in handlers:
-			if path.startswith(prefix):
-				sub_path = path[len(prefix):]
-				method_handler = methods.get(method, None)
-				if method_handler:
-					try:
-						return method_handler(start_response, sub_path, body, env)
-					except BadRequest, e:
-						start_response('400 Bad Request', [e.description])
-						return ['']
-				else:
-					start_response('405 Method Not Allowed', [('Allow', ','.join(methods.keys()))])
-		start_response('404 Not Found', [])
-		return ['']
 
 def main():
 	debug.configure_logging('nodeserver')
