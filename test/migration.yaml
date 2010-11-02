@@ -3,8 +3,17 @@
 # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
 ---
 active_deployment: d1
+target_deployment: d2
 deployments:
     d1:
+        read_repair: yes
+        hash:
+            buckets_per_key: 1
+        buckets:
+            b1:
+                n1: [localhost, 4711]
+                n2: [localhost, 4712]
+    d2:
         read_repair: yes
         hash:
             buckets_per_key: 2

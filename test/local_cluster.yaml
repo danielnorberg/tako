@@ -2,16 +2,15 @@
 #
 # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
 ---
-active_deployment: d1
+master_coordinator: c1
+coordinators:
+    c1: [localhost, 4701]
+active_deployment: standalone
 deployments:
-    d1:
+    standalone:
         read_repair: yes
         hash:
-            buckets_per_key: 2
+            buckets_per_key: 1
         buckets:
             b1:
                 n1: [localhost, 4711]
-                n2: [localhost, 4712]
-            b2:
-                n3: [localhost, 4713]
-                n4: [localhost, 4714]
