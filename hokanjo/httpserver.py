@@ -27,5 +27,5 @@ class HttpServer(object):
 
 	def serve(self):
 		"""docstring for serve"""
-		self.wsgi_server = WSGIServer(('', self.node.port), self.handle_request)
+		self.wsgi_server = WSGIServer(('', self.port), self.handle_request)
 		self.wsgi_server.serve_forever()

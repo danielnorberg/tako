@@ -44,6 +44,7 @@ class NodeServer(httpserver.HttpServer):
 			('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
 			('/stat/', {'GET':self.stat_GET}),
 		)
+		self.port = self.node.port
 
 	def quote(self, key):
 		"""docstring for quote"""
