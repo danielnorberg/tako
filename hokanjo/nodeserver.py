@@ -13,20 +13,6 @@ import httpserver
 from store import Store
 from configuration import Configuration
 
-class BadRequest(object):
-	"""docstring for BadRequest"""
-	def __init__(self, description=''):
-		super(BadRequest, self).__init__()
-		self.description = description
-
-	def __str__(self):
-		"""docstring for __str__"""
-		return repr(self)
-
-	def __repr__(self):
-		"""docstring for __repr__"""
-		return "BadRequest('%s')" % self.description
-
 class NodeServer(httpserver.HttpServer):
 	def __init__(self, node_id, db_file, configuration):
 		super(NodeServer, self).__init__()
@@ -198,7 +184,7 @@ class NodeServer(httpserver.HttpServer):
 			timestamp = float(env.get('HTTP_X_TIMESTAMP', time.time()))
 			return timestamp
 		except ValueError:
-			raise BadRequest()
+			raise httpserver.BadRequest()
 
 	def propagate(self, key, value, timestamp, target_nodes = []):
 		"""docstring for propagate"""
@@ -237,7 +223,7 @@ def main():
 	debug.configure_logging('nodeserver')
 
 	parser = argparse.ArgumentParser(description="Hokanjo Node")
-	parser.add_argument('-id','--id', help='Server id. Default = 1', type=int, default=1)
+	parser.add_argument('-id','--id', help='Server id. Default = n1', default='n1')
 	parser.add_argument('-cfg','--config', help='Config file.', type=argparse.FileType('r'), default='etc/standalone.yaml')
 	parser.add_argument('-f','--file', help='Database file. Default = data.tch', default='var/data/standalone.tch')
 
@@ -259,12 +245,12 @@ def main():
 		exit(-1)
 
 	if args.id not in configuration.active_deployment.nodes:
-		print >> sys.stderr, 'Configuration for Node (id = %d) not found in configuration file (%s)' % (args.id, os.path.normpath(args.config.name))
+		print >> sys.stderr, 'Configuration for Node (id = %s) not found in configuration file (%s)' % (args.id, os.path.normpath(args.config.name))
 		exit(-1)
 
 	print 'Hokanjo Node'
 	print '-' * 80
-	print 'Node id: %d' % args.id
+	print 'Node id: %s' % args.id
 	print 'Config file: %s' % (args.config and args.config.name)
 	print 'Serving up %s on port %d...' % (args.file, configuration.active_deployment.nodes[args.id].port)
 

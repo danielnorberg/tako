@@ -1,6 +1,20 @@
 import gevent
 from gevent.wsgi import WSGIServer
 
+class BadRequest(object):
+	"""docstring for BadRequest"""
+	def __init__(self, description=''):
+		super(BadRequest, self).__init__()
+		self.description = description
+
+	def __str__(self):
+		"""docstring for __str__"""
+		return repr(self)
+
+	def __repr__(self):
+		"""docstring for __repr__"""
+		return "BadRequest('%s')" % self.description
+
 class HttpServer(object):
 	"""docstring for HttpServer"""
 	def __init__(self):

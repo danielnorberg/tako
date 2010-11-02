@@ -13,7 +13,7 @@ class Node(object):
 
 	def __str__(self):
 		"""docstring for __str__"""
-		return "Node(id=%d, bucket=%d, %s:%d)" % (self.id, self.bucket_id, self.address, self.port)
+		return "Node(id=%s, bucket=%s, %s:%d)" % (self.id, self.bucket_id, self.address, self.port)
 
 	def __repr__(self):
 		"""docstring for __repr__"""
@@ -101,7 +101,7 @@ class Coordinator(object):
 
 	def __str__(self):
 		"""docstring for __str__"""
-		return "Coordinator(id=%d, %s:%d)" % (self.id, self.address, self.port)
+		return "Coordinator(id=%s, %s:%d)" % (self.id, self.address, self.port)
 
 	def __repr__(self):
 		"""docstring for __repr__"""
