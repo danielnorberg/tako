@@ -159,6 +159,8 @@ class Configuration(object):
 		assert specification['active_deployment'] in specification['deployments']
 		if 'target_deployment' in specification:
 			assert specification['target_deployment'] in specification['deployments']
+		if 'master_coordinator' in specification:
+			assert specification['master_coordinator'] in specification['coordinators']
 
 	def find_neighbour_buckets(self, key, node):
 		"""docstring for find_neighbour_buckets"""
