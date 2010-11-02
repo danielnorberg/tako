@@ -1,4 +1,6 @@
 from consistenthash import ConsistentHash
+import testcase
+import pprint
 
 class Node(object):
 	"""docstring for Node"""
@@ -72,14 +74,38 @@ class Deployment(object):
 		return siblings.values()
 
 	def specification(self):
-		return {
+		spec = {
+			'read_repair': self.read_repair_enabled,
 			'hash': {
 				'buckets_per_key': self.consistent_hash.buckets_per_key,
 			},
-			'buckets':dict(
-				(bucket.id, [[node.id, node.address, node.port] for node in bucket]) for bucket in self.buckets.values()
-			),
+			'buckets':dict((bucket.id, dict((node.id, [node.address, node.port]) for node in bucket)) for bucket in self.buckets.values()),
 		}
+		return spec
+
+	def __str__(self):
+		"""docstring for __str__"""
+		return 'Deployment(read_repair=%s, hash=%s, buckets=%s)' % (self.read_repair_enabled, {'buckets_per_key':self.consistent_hash.buckets_per_key}, ', '.join([str(bucket) for bucket in self.buckets.itervalues()]))
+
+	def __repr__(self):
+		"""docstring for __repr__"""
+		return str(self)
+
+class Coordinator(object):
+	"""docstring for Coordinator"""
+	def __init__(self, coordinator_id, address, port):
+		super(Coordinator, self).__init__()
+		self.id = coordinator_id
+		self.address = address
+		self.port = port
+
+	def __str__(self):
+		"""docstring for __str__"""
+		return "Coordinator(id=%d, %s:%d)" % (self.id, self.address, self.port)
+
+	def __repr__(self):
+		"""docstring for __repr__"""
+		return str(self)
 
 
 class Configuration(object):
@@ -87,7 +113,7 @@ class Configuration(object):
 	def __init__(self, specification=None):
 		super(Configuration, self).__init__()
 		if specification:
-			self.load(specification)
+			assert self.load(specification)
 
 	def __repr__(self):
 		"""docstring for __repr__"""
@@ -99,28 +125,40 @@ class Configuration(object):
 
 	def load(self, specification):
 		"""docstring for load"""
-		if not self.validate_specification(specification):
-			return False
+		self.validate_specification(specification)
 		self.original_specification = specification
-		self.deployments = dict((name, Deployment(name, deployment_specification)) for name, deployment_specification in specification['deployments'].iteritems())
+		self.deployments = dict((name, Deployment(name, deployment_specification)) for name, deployment_specification in specification.get('deployments', {}).iteritems())
 		self.active_deployment_name = specification['active_deployment']
 		self.active_deployment = self.deployments[self.active_deployment_name]
+		self.target_deployment_name = specification.get('target_deployment', None)
+		self.target_deployment = self.target_deployment_name and self.deployments[self.target_deployment_name]
+		self.coordinators = dict((coordinator_id, Coordinator(coordinator_id, address, port)) for coordinator_id, (address, port) in specification.get('coordinators', {}).iteritems())
+		self.master_coordinator = specification.get('master_coordinator', None)
 		return True
 
 	def specification(self):
 		"""docstring for yaml"""
-		return {
-			"active_deployment": self.active_deployment_name,
-			"deployments": dict((deployment.name, deployment.specification()) for deployment in self.deployments.itervalues())
+		spec = {
+			'active_deployment': self.active_deployment_name,
+			'deployments': dict((deployment.name, deployment.specification()) for deployment in self.deployments.itervalues()),
 		}
+		if self.coordinators:
+			spec['coordinators'] = dict((coordinator.id, [coordinator.address, coordinator.port]) for coordinator in self.coordinators.itervalues())
+		if self.master_coordinator:
+			spec['master_coordinator'] = self.master_coordinator
+		if self.target_deployment_name:
+			spec['target_deployment'] = self.target_deployment_name
+		return spec
 
 	def validate_specification(self, specification):
 		"""docstring for validate_specification"""
-		valid =	'active_deployment' in specification and \
-				'deployments' in specification and \
-				len(specification['deployments']) > 0 and \
-				specification['active_deployment'] in specification['deployments']
-		return valid
+		# TODO: Complete validation
+		assert 'active_deployment' in specification
+		assert 'deployments' in specification
+		assert len(specification['deployments']) > 0
+		assert specification['active_deployment'] in specification['deployments']
+		if 'target_deployment' in specification:
+			assert specification['target_deployment'] in specification['deployments']
 
 	def find_neighbour_buckets(self, key, node):
 		"""docstring for find_neighbour_buckets"""
@@ -128,9 +166,22 @@ class Configuration(object):
 		key_buckets = self.active_deployment.consistent_hash.find_buckets(key)
 		return key_buckets - set([node_bucket])
 
+
+class TestConfiguration(testcase.TestCase):
+	def testParsing(self):
+		import yaml
+		import paths
+		files = ['test/config.yaml', 'test/local_cluster.yaml', 'test/migration.yaml']
+		for f in files:
+			print
+			pp = pprint.PrettyPrinter()
+			loaded_specification = yaml.load(open(paths.path(f)))
+			pp.pprint(loaded_specification)
+			configuration = Configuration(loaded_specification)
+			generated_specification = configuration.specification()
+			pp.pprint(generated_specification)
+			self.assertEqual(generated_specification, loaded_specification)
+
 if __name__ == '__main__':
-	import yaml
-	import paths
-	configuration = Configuration(yaml.load(open(paths.path('config.yaml'))))
-	print yaml.dump(configuration.specification())
-	print configuration.active_deployment.consistent_hash
+	import unittest
+	unittest.main()

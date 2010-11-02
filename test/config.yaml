@@ -1,7 +1,6 @@
 %YAML 1.1
 ---
 active_deployment: 1
-target_deployment: 2
 deployments:
     1:
         read_repair: yes
