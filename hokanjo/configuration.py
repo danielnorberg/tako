@@ -159,8 +159,22 @@ class Configuration(object):
 		assert specification['active_deployment'] in specification['deployments']
 		if 'target_deployment' in specification:
 			assert specification['target_deployment'] in specification['deployments']
+		for deployment_id, deployment in specification['deployments'].iteritems():
+			assert 'buckets' in deployment
+			for bucket_id, bucket in deployment['buckets'].iteritems():
+				assert len(bucket) > 0
+				for node_id, node in bucket.iteritems():
+					assert len(node) == 2
+					address, port = node
+					assert type(address) == str
+					assert type(port) == int
 		if 'master_coordinator' in specification:
 			assert specification['master_coordinator'] in specification['coordinators']
+		for coordinator_id, coordinator in specification.get('coordinators', {}).iteritems():
+			assert len(coordinator) == 2
+			address, port = coordinator
+			assert type(address) == str
+			assert type(port) == int
 
 	def find_neighbour_buckets(self, key, node):
 		"""docstring for find_neighbour_buckets"""
