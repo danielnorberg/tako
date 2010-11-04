@@ -1,112 +1,82 @@
-from consistenthash import ConsistentHash
 import testcase
 import pprint
+import yaml
+import simplejson as json
+import logging
 
-class Node(object):
-	"""docstring for Node"""
-	def __init__(self, node_id, bucket_id, address, port):
-		super(Node, self).__init__()
-		self.id = node_id
-		self.bucket_id = bucket_id
-		self.address = address
-		self.port = port
+from models import Coordinator, Deployment
+
+def try_load_specification(specification):
+	"""docstring for try_load_specification"""
+	try:
+		return Configuration(specification)
+	except ValidationError, e:
+		logging.error('Configuration is not valid: %s', e)
+		return None
+
+def try_load_json(s):
+	try:
+		specification = json.loads(s)
+	except Exception, e:
+		logging.error('Failed to parse JSON configuration: %s', e)
+		return None
+	return try_load_specification(specification)
+
+def try_load_file(filepath):
+	"""docstring for load"""
+	try:
+		with open(filepath) as f:
+			specification = yaml.load(f)
+	except IOError, e:
+		logging.error('Failed reading configuration file: %s', e)
+		return None
+	except Exception, e:
+		logging.error('Failed reading configuration file: %s', e)
+		return None
+	return try_load_specification(specification)
+
+def validate_specification(specification):
+	"""docstring for validate_specification"""
+	# TODO: Complete validation
+	try:
+		assert 'active_deployment' in specification
+		assert 'deployments' in specification
+		assert len(specification['deployments']) > 0
+		assert specification['active_deployment'] in specification['deployments']
+		if 'target_deployment' in specification:
+			assert specification['target_deployment'] in specification['deployments']
+		for deployment_id, deployment in specification['deployments'].iteritems():
+			assert 'buckets' in deployment
+			for bucket_id, bucket in deployment['buckets'].iteritems():
+				assert len(bucket) > 0
+				for node_id, node in bucket.iteritems():
+					assert len(node) == 2
+					address, port = node
+					assert type(address) == str
+					assert type(port) == int
+		if 'master_coordinator' in specification:
+			assert specification['master_coordinator'] in specification['coordinators']
+		for coordinator_id, coordinator in specification.get('coordinators', {}).iteritems():
+			assert len(coordinator) == 2
+			address, port = coordinator
+			assert type(address) == str
+			assert type(port) == int
+	except AssertionError:
+		raise ValidationError()
+
+class ValidationError(object):
+	"""docstring for ValidationError"""
+	def __init__(self, description=None):
+		super(ValidationError, self).__init__()
+		self.description = description
 
 	def __str__(self):
 		"""docstring for __str__"""
-		return "Node(id=%s, bucket=%s, %s:%d)" % (self.id, self.bucket_id, self.address, self.port)
+		return 'ValidationError(%s)' % (self.description or '')
 
 	def __repr__(self):
 		"""docstring for __repr__"""
 		return str(self)
-
-	def internal_url(self):
-		"""docstring for url"""
-		return 'http://%s:%d/internal/' % (self.address, self.port)
-
-	def store_url(self):
-		"""docstring for store_url"""
-		return 'http://%s:%d/store/' % (self.address, self.port)
-
-	def stat_url(self):
-		"""docstring for stat_url"""
-		return 'http://%s:%d/stat/' % (self.address, self.port)
-
-class Bucket(object):
-	"""docstring for Bucket"""
-	def __init__(self, bucket_id, nodes):
-		super(Bucket, self).__init__()
-		self.id = bucket_id
-		self.nodes = nodes
-
-	def __str__(self):
-		return 'Bucket(%s)' % ', '.join([str(node) for node in self.nodes.itervalues()])
-
-	def __repr__(self):
-		return str(self)
-
-	def __iter__(self):
-		return self.nodes.itervalues()
-
-	def __hash__(self):
-		return hash(self.id)
-
-
-
-class Deployment(object):
-	"""docstring for Deployment"""
-	def __init__(self, name, specification):
-		super(Deployment, self).__init__()
-		self.original_specification = specification
-		self.name = name
-		self.buckets = dict((bucket_id, Bucket(bucket_id, dict((node_id, Node(node_id, bucket_id, address, port)) for node_id, (address, port) in bucket.iteritems()))) \
-							for bucket_id, bucket in specification['buckets'].iteritems())
-		self.nodes = dict((node_id, node) for bucket in self.buckets.itervalues() for node_id, node in bucket.nodes.iteritems())
-		hash_configuration = specification.get('hash', {})
-		self.consistent_hash = ConsistentHash(self.buckets.values(), **hash_configuration)
-		self.read_repair_enabled = specification.get('read_repair', True)
-
-	def siblings(self, node_id):
-		"""docstring for siblings"""
-		node = self.nodes[node_id]
-		bucket = self.buckets[node.bucket_id]
-		siblings = dict(bucket.nodes)
-		del siblings[node_id]
-		return siblings.values()
-
-	def specification(self):
-		spec = {
-			'read_repair': self.read_repair_enabled,
-			'hash': {
-				'buckets_per_key': self.consistent_hash.buckets_per_key,
-			},
-			'buckets':dict((bucket.id, dict((node.id, [node.address, node.port]) for node in bucket)) for bucket in self.buckets.values()),
-		}
-		return spec
-
-	def __str__(self):
-		"""docstring for __str__"""
-		return 'Deployment(read_repair=%s, hash=%s, buckets=%s)' % (self.read_repair_enabled, {'buckets_per_key':self.consistent_hash.buckets_per_key}, ', '.join([str(bucket) for bucket in self.buckets.itervalues()]))
-
-	def __repr__(self):
-		"""docstring for __repr__"""
-		return str(self)
-
-class Coordinator(object):
-	"""docstring for Coordinator"""
-	def __init__(self, coordinator_id, address, port):
-		super(Coordinator, self).__init__()
-		self.id = coordinator_id
-		self.address = address
-		self.port = port
-
-	def __str__(self):
-		"""docstring for __str__"""
-		return "Coordinator(id=%s, %s:%d)" % (self.id, self.address, self.port)
-
-	def __repr__(self):
-		"""docstring for __repr__"""
-		return str(self)
-
 
 class Configuration(object):
 	"""docstring for Configuration"""
@@ -121,11 +91,11 @@ class Configuration(object):
 
 	def __str__(self):
 		"""docstring for fname"""
-		return "Configuration(Buckets=%s)" % ', '.join(str(bucket) for bucket in self.buckets.values())
+		return "Configuration(%s)" % self.specification()
 
 	def load(self, specification):
 		"""docstring for load"""
-		self.validate_specification(specification)
+		validate_specification(specification)
 		self.original_specification = specification
 		self.deployments = dict((name, Deployment(name, deployment_specification)) for name, deployment_specification in specification.get('deployments', {}).iteritems())
 		self.active_deployment_name = specification['active_deployment']
@@ -149,32 +119,6 @@ class Configuration(object):
 		if self.target_deployment_name:
 			spec['target_deployment'] = self.target_deployment_name
 		return spec
-
-	def validate_specification(self, specification):
-		"""docstring for validate_specification"""
-		# TODO: Complete validation
-		assert 'active_deployment' in specification
-		assert 'deployments' in specification
-		assert len(specification['deployments']) > 0
-		assert specification['active_deployment'] in specification['deployments']
-		if 'target_deployment' in specification:
-			assert specification['target_deployment'] in specification['deployments']
-		for deployment_id, deployment in specification['deployments'].iteritems():
-			assert 'buckets' in deployment
-			for bucket_id, bucket in deployment['buckets'].iteritems():
-				assert len(bucket) > 0
-				for node_id, node in bucket.iteritems():
-					assert len(node) == 2
-					address, port = node
-					assert type(address) == str
-					assert type(port) == int
-		if 'master_coordinator' in specification:
-			assert specification['master_coordinator'] in specification['coordinators']
-		for coordinator_id, coordinator in specification.get('coordinators', {}).iteritems():
-			assert len(coordinator) == 2
-			address, port = coordinator
-			assert type(address) == str
-			assert type(port) == int
 
 	def find_neighbour_buckets(self, key, node):
 		"""docstring for find_neighbour_buckets"""

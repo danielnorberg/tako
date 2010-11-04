@@ -1,3 +1,4 @@
+import logging
 import gevent
 from gevent.wsgi import WSGIServer
 
@@ -41,5 +42,6 @@ class HttpServer(object):
 
 	def serve(self):
 		"""docstring for serve"""
+		logging.info('Listening on port %d', self.port)
 		self.wsgi_server = WSGIServer(('', self.port), self.handle_request)
 		self.wsgi_server.serve_forever()

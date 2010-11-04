@@ -1,15 +1,11 @@
 import gevent, gevent.monkey
 gevent.monkey.patch_all()
-# import urllib, urllib2
 import argparse
-import yaml
-# import logging
 import debug
 import os, sys
-# import email.utils
-# import time
 import httpserver
 import simplejson as json
+import configuration
 
 from configuration import Configuration
 
@@ -53,7 +49,7 @@ def main():
 	debug.configure_logging('coordinatorserver')
 
 	parser = argparse.ArgumentParser(description="Hokanjo Coordinator")
-	parser.add_argument('-id','--id', help='Server id. Default = 1', default='c1')
+	parser.add_argument('-id', '--id', help='Server id. Default = 1', default='c1')
 	parser.add_argument('-cfg','--config', help='Config file.', default='test/local_cluster.yaml')
 
 	try:
@@ -62,31 +58,20 @@ def main():
 		print >> sys.stderr, str(e)
 		exit(-1)
 
-	try:
-		config_file = open(args.config)
-	except IOError, e:
-		print >> sys.stderr, str(e)
-		exit(-1)
+	cfg = configuration.try_load_file(args.config)
 
-	try:
-		specification = yaml.load(config_file)
-	except:
-		print >> sys.stderr, 'Configuration file is not valid YAML.'
-		exit(-1)
-
-	configuration = Configuration()
-	if not configuration.load(specification):
-		print >> sys.stderr, 'Configuration is not valid.'
+	if not cfg:
+		print >> sys.stderr, 'Failed to load configuration.'
 		exit(-1)
 
 	print 'Hokanjo Coordinator'
 	print '-' * 80
 	print 'Coordinator id: %s' % args.id
 	print 'Config file: %s' % (args.config)
-	print 'Serving up %s on port %d...' % (args.config, configuration.coordinators[args.id].port)
+	print 'Serving up %s on port %d' % (args.config, cfg.coordinators[args.id].port)
 
 	try:
-		server = CoordinatorServer(args.id, configuration, config_file)
+		server = CoordinatorServer(args.id, cfg, args.config)
 		server.serve()
 	except KeyboardInterrupt:
 		pass

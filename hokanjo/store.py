@@ -10,8 +10,9 @@ TIME_PREFIX = 't'
 
 class Store(object):
 	"""docstring for Store"""
-	def __init__(self, filepath="store.tch"):
+	def __init__(self, filepath):
 		super(Store, self).__init__()
+		logging.debug('filepath: %s', filepath)
 		self.filepath = filepath
 		self.db = tc.HDB()
 
