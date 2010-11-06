@@ -21,16 +21,16 @@ class Timestamp(object):
 	@classmethod
 	def loads(cls, s):
 		"""docstring for loads"""
-		return Timestamp(int(s))
+		return Timestamp(long(s))
 
 	@classmethod
 	def from_seconds(cls, seconds):
 		"""docstring for from_seconds"""
-		return Timestamp(int(seconds * 1000000))
+		return Timestamp(long(seconds * 1000000))
 
 	def __init__(self, microseconds):
 		super(Timestamp, self).__init__()
-		assert type(microseconds) == int
+		assert type(microseconds) in [int, long]
 		self.microseconds = microseconds
 
 	def to_seconds(self):
