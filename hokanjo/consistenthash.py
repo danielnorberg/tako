@@ -1,6 +1,7 @@
 import hashlib
 import bisect
-import unittest, testcase
+import unittest
+from utils import testcase
 
 class ConsistentHash(object):
 	"""Implements a consistent hash"""
