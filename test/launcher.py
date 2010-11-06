@@ -2,17 +2,20 @@ import yaml
 import subprocess
 import os, sys
 import time
+import argparse
 
 import paths
 sys.path.insert(0, paths.home)
 from hokanjo.configuration import Configuration
 
-def launch():
+def launch(profiling=False, debug=False):
 	"""docstring for launch"""
 	os.chdir(paths.home)
+	profiling_cmd = lambda nodeid: profiling and '-p nodeserver-%s.prof' % nodeid or ''
+	debug_cmd = debug and '-d' or ''
 	cfg = Configuration(yaml.load(open(paths.path('test/local_cluster.yaml'))))
 	coordinator_cmds = ['python bin/hokanjo-coordinator -id %s -cfg test/local_cluster.yaml &> var/log/coordinator-%s.log' % (coordinator.id, coordinator.id) for coordinator in cfg.coordinators.itervalues()]
-	node_cmds = ['python bin/hokanjo-node -id %s -c localhost 4701 &> var/log/node-%s.log' % (node.id, node.id) for node in cfg.active_deployment.nodes.itervalues()]
+	node_cmds = ['python bin/hokanjo-node -id %s -c localhost 4701 %s %s &> var/log/node-%s.log' % (node.id, profiling_cmd(node.id), debug_cmd, node.id) for node in cfg.active_deployment.nodes.itervalues()]
 	for cmd in coordinator_cmds:
 		subprocess.Popen(cmd, shell=True)
 	time.sleep(1)
@@ -28,4 +31,7 @@ def launch():
 	print 'Exiting...'
 
 if __name__ == '__main__':
-	launch()
+	parser = argparse.ArgumentParser(description="Launcher")
+	parser.add_argument('-p', '--profiling', help='Enable profiling', action='store_true', default=True)
+	args = parser.parse_args()
+	launch(args.profiling)

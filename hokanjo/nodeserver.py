@@ -234,20 +234,7 @@ class NodeServer(httpserver.HttpServer):
 
 		return value, timestamp
 
-def main():
-	parser = argparse.ArgumentParser(description="Hokanjo Node")
-	parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
-	parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
-	parser.add_argument('-f','--file', help='Database file.')
-	parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
-	parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
-
-	try:
-		args = parser.parse_args()
-	except IOError, e:
-		print >> sys.stderr, str(e)
-		exit(-1)
-
+def _main(args):
 	debug.configure_logging('nodeserver', args.debug and logging.DEBUG or logging.INFO)
 
 	config = None
@@ -281,6 +268,27 @@ def main():
 
 	print
 	print 'Exiting...'
+
+def main():
+	parser = argparse.ArgumentParser(description="Hokanjo Node")
+	parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
+	parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
+	parser.add_argument('-f','--file', help='Database file.')
+	parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
+	parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
+	parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
+
+	try:
+		args = parser.parse_args()
+	except IOError, e:
+		print >> sys.stderr, str(e)
+		exit(-1)
+
+	if args.profiling_file:
+		import cProfile
+		cProfile.runctx('_main(args)', globals(), locals(), args.profiling_file)
+	else:
+		_main(args)
 
 if __name__ == '__main__':
 	os.chdir(paths.home)

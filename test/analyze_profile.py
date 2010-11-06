@@ -1,7 +1,13 @@
-import hotshot, hotshot.stats
+import pstats
+import argparse
 
-stats = hotshot.stats.load("hotshot.prof")
-stats.strip_dirs()
-# stats.sort_stats('cumulative', 'calls')
-stats.sort_stats('time', 'calls')
-stats.print_stats(20)
+def main():
+	parser = argparse.ArgumentParser(description="Profile analyzer")
+	parser.add_argument('file', help='profile file')
+	args = parser.parse_args()
+	p = pstats.Stats(args.file)
+	p.strip_dirs().sort_stats('time').print_stats(15)
+	p.strip_dirs().sort_stats('cumulative').print_stats(15)
+
+if __name__ == '__main__':
+	main()
