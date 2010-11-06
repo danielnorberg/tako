@@ -1,39 +1,73 @@
-import testcase
 import pprint
 import yaml
 import simplejson as json
 import logging
+import os
 
+from utils import testcase
+from utils.timestamp import Timestamp
 from models import Coordinator, Deployment
 
-def try_load_specification(specification):
+def try_load_specification(specification, timestamp=Timestamp.now()):
 	"""docstring for try_load_specification"""
 	try:
-		return Configuration(specification)
+		return Configuration(specification, timestamp)
 	except ValidationError, e:
 		logging.error('Configuration is not valid: %s', e)
 		return None
 
-def try_load_json(s):
+def try_load_json(s, timestamp=Timestamp.now()):
 	try:
 		specification = json.loads(s)
 	except Exception, e:
 		logging.error('Failed to parse JSON configuration: %s', e)
 		return None
-	return try_load_specification(specification)
+	return try_load_specification(specification, timestamp)
 
-def try_load_file(filepath):
+def try_load_file(filepath, timestamp=None):
 	"""docstring for load"""
 	try:
+		if not timestamp:
+			timestamp = Timestamp.from_seconds(os.path.getmtime(filepath))
 		with open(filepath) as f:
 			specification = yaml.load(f)
+	except OSError, e:
+		logging.error('Failed reading configuration file: %s', e)
+		return None
 	except IOError, e:
 		logging.error('Failed reading configuration file: %s', e)
 		return None
 	except Exception, e:
 		logging.error('Failed reading configuration file: %s', e)
 		return None
-	return try_load_specification(specification)
+	return try_load_specification(specification, timestamp)
+
+TIME_FORMAT = '%Y%m%d%H%M%S-%%06d'
+
+def read_persisted_configuration(configuration_directory, prefix):
+	"""docstring for read_persisted_configuration"""
+	try:
+		filenames = [filename for filename in os.listdir(configuration_directory) if os.path.splitext(filename)[1] == '.yaml' and filename.startswith(name)]
+	except OSError, e:
+		logging.debug(e)
+		return None
+	filenames.sort(reverse=True)
+	for filename in filenames:
+		name, ext = os.path.splitext(filename)
+		name_parts = name.split('')
+		timestamp_string = name_parts[-1]
+		timestamp = Timestamp.loads(timestamp_string)
+		filepath = os.path.join(self.configuration_directory, filename)
+		persisted_configuration = configuration.try_load_file(filepath, timestamp)
+		if persisted_configuration:
+			return persisted_configuration
+	return None
+
+def persist_configuration(self, prefix):
+	"""docstring for persist_configuration"""
+	filename = '%s.%s.yaml' % (prefix, self.configuration.timestamp)
+	filepath = os.path.join(self.configuration_directory, filename)
+	configuration.try_dump_file(self.configuration)
 
 def validate_specification(specification):
 	"""docstring for validate_specification"""
@@ -80,8 +114,9 @@ class ValidationError(object):
 
 class Configuration(object):
 	"""docstring for Configuration"""
-	def __init__(self, specification=None):
+	def __init__(self, specification=None, timestamp=Timestamp.now()):
 		super(Configuration, self).__init__()
+		self.timestamp = timestamp
 		if specification:
 			assert self.load(specification)
 
@@ -136,12 +171,16 @@ class TestConfiguration(testcase.TestCase):
 		for f in files:
 			print
 			pp = pprint.PrettyPrinter()
-			loaded_specification = yaml.load(open(paths.path(f)))
-			pp.pprint(loaded_specification)
-			configuration = Configuration(loaded_specification)
-			generated_specification = configuration.specification()
-			pp.pprint(generated_specification)
-			self.assertEqual(generated_specification, loaded_specification)
+			filepath = paths.path(f)
+			with open(filepath) as specfile:
+				loaded_specification = yaml.load(specfile)
+				pp.pprint(loaded_specification)
+				timestamp = Timestamp.from_seconds(os.path.getmtime(filepath))
+				helper_loaded_configuration = try_load_file(filepath)
+				manually_loaded_configuration = Configuration(loaded_specification, timestamp)
+				self.assertEqual(manually_loaded_configuration.specification(), loaded_specification)
+				self.assertEqual(manually_loaded_configuration.specification(), helper_loaded_configuration.specification())
+				self.assertEqual(manually_loaded_configuration.timestamp, helper_loaded_configuration.timestamp)
 
 if __name__ == '__main__':
 	import unittest

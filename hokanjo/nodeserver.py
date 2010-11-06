@@ -3,22 +3,23 @@ gevent.monkey.patch_all()
 import urllib, urllib2
 import argparse
 import logging
-import debug
+from utils import debug
 import os, sys
 import email.utils
-import time
 import httpserver
 import paths
 
+from utils.timestamp import Timestamp
 from utils import convert
 from utils import http
 
 from store import Store
 import configuration
 from configuration import Coordinator
+from coordinatorclient import CoordinatorClient
 
 class NodeServer(httpserver.HttpServer):
-	def __init__(self, node_id, store_file=None, cfg=None, coordinators=[], var_directory='var'):
+	def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinators=[], var_directory='var'):
 		super(NodeServer, self).__init__()
 		self.id = node_id
 		self.var_directory = os.path.join(paths.home, var_directory)
@@ -31,70 +32,37 @@ class NodeServer(httpserver.HttpServer):
 			('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
 			('/stat/', {'GET':self.stat_GET}),
 		)
+		self.coordinator_client = CoordinatorClient(coordinators=coordinators, callbacks=[self.set_new_configuration], interval=30)
 
-		if not cfg:
-			cfg = self.read_persisted_configuration()
+		self.configuration = None
+		if explicit_configuration:
+			self.set_new_configuration(explicit_configuration)
+		else:
+			persisted_configuration = configuration.read_persisted_configuration(self.configuration_directory, prefix='nodeserver')
+			if persisted_configuration:
+				self.set_new_configuration(persisted_configuration)
 
-		if not cfg and coordinators:
-			cfg = self.fetch_configuration(coordinators, tries=0)
+	def set_new_configuration(self, new_configuration):
+		"""docstring for set_new_configuration"""
+		if not self.configuration or new_configuration.timestamp > self.configuration.timestamp:
+			self.set_configuration(new_configuration)
 
-		if not cfg:
-			raise Exception("No configuration.")
-
-		self.configure(cfg)
-
-	def configure(self, cfg):
+	def set_configuration(self, new_configuration):
 		"""docstring for configuration"""
-		logging.debug(cfg)
-		self.configuration = cfg
+		logging.debug(new_configuration)
+		self.configuration = new_configuration
 		self.deployment = self.configuration.active_deployment
 		self.read_repair_enabled = self.configuration.active_deployment.read_repair_enabled
 		self.node = self.deployment.nodes[self.id]
 		self.siblings = self.deployment.siblings(self.id)
 		self.port = self.node.port
 
-	def read_persisted_configuration(self):
-		"""docstring for read_persisted_configuration"""
-		try:
-			filenames = [name for name in os.listdir(self.configuration_directory) if os.path.splitext(name)[1] == '.yaml']
-		except OSError, e:
-			logging.debug(e)
-			return None
-		filenames.sort(reverse=True)
-		for filename in filenames:
-			filepath = os.path.join(self.configuration_directory, filename)
-			cfg = configuration.load(filepath)
-			if cfg:
-				return cfg
-		return None
-
-	def fetch_configuration(self, coordinators, tries=3, max_backoff=60*60):
-		"""docstring for fetch_configuration"""
-		logging.debug('coordinators: %s', coordinators)
-		backoff = 3
-		tries = tries or sys.maxint
-		for i in xrange(0, tries):
-			logging.info('Attempt %d', i)
-			for coordinator in coordinators:
-				url = coordinator.configuration_url()
-				body, info = http.fetch(url)
-				if body:
-					logging.debug('Got specification: %s', body)
-					cfg = configuration.try_load_json(body)
-					if cfg:
-						return cfg
-					else:
-						logging.error('Got corrupt configuration from coordinator %s', repr(url))
-			logging.info('Sleeping for %d seconds', backoff)
-			time.sleep(backoff)
-			backoff = min(max_backoff, backoff * 2)
-		logging.error('Failed to fetch configuration.')
-		return None
-
 	def serve(self):
 		"""docstring for server"""
-		if not self.configuration:
-			raise Exception("Not configured.")
+		self.coordinator_client.start()
+		while not self.configuration:
+			logging.debug('Waiting for configuration.')
+			gevent.sleep(1)
 		super(NodeServer, self).serve()
 
 	def quote(self, key):
@@ -116,8 +84,8 @@ class NodeServer(httpserver.HttpServer):
 		if value:
 			start_response('200 OK', [
 				('Content-Type', 'application/octet-stream'),
-				('Last-Modified', email.utils.formatdate(timestamp)),
-				('X-TimeStamp', repr(timestamp)),
+				('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
+				('X-TimeStamp', str(timestamp)),
 			])
 			return value
 		else:
@@ -127,13 +95,13 @@ class NodeServer(httpserver.HttpServer):
 	def store_POST(self, start_response, path, body, env):
 		key = self.unquote(path)
 		value = body.read()
-		timestamp = self.get_timestamp(env)
-		logging.debug("key: %s, timestamp: %s", repr(key), repr(timestamp))
+		timestamp = self.try_get_timestamp(env)
+		logging.debug("key: %s, timestamp: %s", repr(key), timestamp)
 		self.store.set(key, value, timestamp)
 		self.propagate(key, value, timestamp)
 		start_response('200 OK', [
 			('Content-Type', 'application/octet-stream'),
-			('X-TimeStamp', repr(timestamp)),
+			('X-TimeStamp', str(timestamp)),
 		])
 		return ['']
 
@@ -145,8 +113,8 @@ class NodeServer(httpserver.HttpServer):
 		if value:
 			start_response('200 OK', [
 				('Content-Type', 'application/octet-stream'),
-				('Last-Modified', email.utils.formatdate(timestamp)),
-				('X-TimeStamp', repr(timestamp)),
+				('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
+				('X-TimeStamp', str(timestamp)),
 			])
 			return [value]
 		else:
@@ -157,12 +125,12 @@ class NodeServer(httpserver.HttpServer):
 		"""docstring for internal_POST"""
 		key = self.unquote(path)
 		value = body.read()
-		timestamp = self.get_timestamp(env)
-		logging.debug("key: %s, timestamp: %s", repr(key), repr(timestamp))
+		timestamp = self.try_get_timestamp(env)
+		logging.debug("key: %s, timestamp: %s", repr(key), timestamp)
 		self.store.set(key, value, timestamp)
 		start_response('200 OK', [
 			('Content-Type', 'application/octet-stream'),
-			('X-TimeStamp', repr(timestamp)),
+			('X-TimeStamp', str(timestamp)),
 		])
 		return ['']
 
@@ -171,24 +139,24 @@ class NodeServer(httpserver.HttpServer):
 		logging.debug("path: %s", path)
 		key = self.unquote(path)
 		value, timestamp = self.store.get(key)
-		logging.debug("path: %s, timestamp: %s", repr(path), repr(timestamp))
+		logging.debug("path: %s, timestamp: %s", repr(path), timestamp)
 		if value:
 			start_response('200 OK', [
 				('Content-Type', 'application/octet-stream'),
-				('Last-Modified', email.utils.formatdate(timestamp)),
-				('X-TimeStamp', repr(timestamp)),
+				('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
+				('X-TimeStamp', str(timestamp)),
 			])
-			return [repr(timestamp)]
+			return [str(timestamp)]
 		else:
 			start_response('404 Not Found', [])
 			return ['']
 
 	def send(self, key, value, timestamp, node):
-		logging.debug('key: %s, timestamp: %s, node: %s', repr(key), repr(timestamp), node)
+		logging.debug('key: %s, timestamp: %s, node: %s', repr(key), str(timestamp), node)
 		path = self.quote(key)
 		try:
 			url = node.internal_url() + path
-			request = urllib2.Request(url, value, {'X-TimeStamp': repr(timestamp)})
+			request = urllib2.Request(url, value, {'X-TimeStamp': str(timestamp)})
 			stream = urllib2.urlopen(request)
 			stream.read()
 			stream.close()
@@ -209,8 +177,8 @@ class NodeServer(httpserver.HttpServer):
 		path = self.quote(key)
 		url = node.stat_url() + path
 		body, info = http.fetch(url)
-		timestamp = convert.try_float(info.get('X-TimeStamp', None))
-		logging.debug('key: %s, node: %s, timestamp: %s', repr(key), node, repr(timestamp))
+		timestamp = Timestamp.try_loads(info.get('X-TimeStamp', None))
+		logging.debug('key: %s, node: %s, timestamp: %s', repr(key), node, timestamp)
 		return (timestamp, node)
 
 	def fetch_timestamps(self, key):
@@ -225,11 +193,10 @@ class NodeServer(httpserver.HttpServer):
 		timestamps = sorted(greenlet.value for greenlet in greenlets)
 		return timestamps
 
-	def get_timestamp(self, env):
-		"""docstring for get_timestamp"""
+	def try_get_timestamp(self, env):
+		"""docstring for try_get_timestamp"""
 		try:
-			timestamp = float(env.get('HTTP_X_TIMESTAMP', time.time()))
-			return timestamp
+			return Timestamp.try_loads(env.get('HTTP_X_TIMESTAMP', None)) or Timestamp.now()
 		except ValueError:
 			raise httpserver.BadRequest()
 
@@ -296,15 +263,16 @@ def main():
 	print 'Node id: %s' % args.id
 
 	coordinators = []
-	for address, port_string in args.coordinator:
-		port = convert.try_int(port_string)
-		if not port:
-			print >> sys.stderr, 'Port number is not numerical.'
-			exit(-1)
-		coordinators.append(Coordinator(None, address, port))
+	if args.coordinator:
+		for address, port_string in args.coordinator:
+			port = convert.try_int(port_string)
+			if not port:
+				print >> sys.stderr, 'Port number is not numerical.'
+				exit(-1)
+			coordinators.append(Coordinator(None, address, port))
 
 	try:
-		server = NodeServer(args.id, store_file=args.file, cfg=config, coordinators=coordinators)
+		server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinators=coordinators)
 		server.serve()
 	except KeyboardInterrupt:
 		pass

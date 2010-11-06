@@ -1,9 +1,10 @@
 import tc
 import os, unittest, tempfile
 import logging
-import testcase
+from utils import testcase
 import struct
-import time
+
+from utils.timestamp import Timestamp
 
 KEY_PREFIX = 'k'
 TIME_PREFIX = 't'
@@ -26,9 +27,9 @@ class Store(object):
 
 	def set(self, key, value, timestamp=None):
 		"""docstring for set"""
-		timestamp = timestamp or time.time()
-		logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), repr(timestamp))
-		data = struct.pack('d', timestamp) + value
+		timestamp = timestamp or Timestamp.now()
+		logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
+		data = struct.pack('Q', timestamp.microseconds) + value
 		self.db.put(key, data)
 		return timestamp
 
@@ -39,8 +40,9 @@ class Store(object):
 		timestamp = None
 		try:
 			data = self.db.get(key)
-			(timestamp, ), value = struct.unpack('d', data[0:8]), data[8:]
-			logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), repr(timestamp))
+			value = data[8:]
+			timestamp = Timestamp(struct.unpack('Q', data[0:8])[0])
+			logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
 			return (value, timestamp)
 		except:
 			pass
@@ -53,7 +55,7 @@ class StoreTest(testcase.TestCase):
 		store.open()
 		timestamp = store.set("foo", "bar")
 		self.assertEqual(store.get("foo"), ("bar", timestamp))
-		self.assertEqual(store.get("loo"), None)
+		self.assertEqual(store.get("loo"), (None, None))
 		store.close()
 		store.open()
 		self.assertEqual(store.get("foo"), ("bar", timestamp))
