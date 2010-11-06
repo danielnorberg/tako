@@ -60,6 +60,7 @@ class NodeServer(httpserver.HttpServer):
 	def serve(self):
 		"""docstring for server"""
 		self.coordinator_client.start()
+		logging.info('Checking Configuration.')
 		while not self.configuration:
 			logging.debug('Waiting for configuration.')
 			gevent.sleep(1)
@@ -234,19 +235,20 @@ class NodeServer(httpserver.HttpServer):
 		return value, timestamp
 
 def main():
-	debug.configure_logging('nodeserver')
-
 	parser = argparse.ArgumentParser(description="Hokanjo Node")
 	parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
 	parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
 	parser.add_argument('-f','--file', help='Database file.')
 	parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
+	parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
 
 	try:
 		args = parser.parse_args()
 	except IOError, e:
 		print >> sys.stderr, str(e)
 		exit(-1)
+
+	debug.configure_logging('nodeserver', args.debug and logging.DEBUG or logging.INFO)
 
 	config = None
 	if args.config:
