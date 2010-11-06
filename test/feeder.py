@@ -32,8 +32,8 @@ def main():
 		if time.time() - last_time > 1:
 			last_time = time.time()
 			print i
-		try:
 			print 'Posting to %s' % url
+		try:
 			headers = {
 				# 'X-TimeStamp':time.time()
 			}
