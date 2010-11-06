@@ -32,18 +32,18 @@ class NodeServer(httpserver.HttpServer):
 			('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
 			('/stat/', {'GET':self.stat_GET}),
 		)
-		self.coordinator_client = CoordinatorClient(coordinators=coordinators, callbacks=[self.set_new_configuration], interval=30)
+		self.coordinator_client = CoordinatorClient(coordinators=coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
 
 		self.configuration = None
 		if explicit_configuration:
-			self.set_new_configuration(explicit_configuration)
+			self.evaluate_new_configuration(explicit_configuration)
 		else:
 			persisted_configuration = configuration.read_persisted_configuration(self.configuration_directory, prefix='nodeserver')
 			if persisted_configuration:
-				self.set_new_configuration(persisted_configuration)
+				self.evaluate_new_configuration(persisted_configuration)
 
-	def set_new_configuration(self, new_configuration):
-		"""docstring for set_new_configuration"""
+	def evaluate_new_configuration(self, new_configuration):
+		"""docstring for evaluate_new_configuration"""
 		if not self.configuration or new_configuration.timestamp > self.configuration.timestamp:
 			self.set_configuration(new_configuration)
 
@@ -56,6 +56,7 @@ class NodeServer(httpserver.HttpServer):
 		self.node = self.deployment.nodes[self.id]
 		self.siblings = self.deployment.siblings(self.id)
 		self.port = self.node.port
+		configuration.persist_configuration()
 
 	def serve(self):
 		"""docstring for server"""
