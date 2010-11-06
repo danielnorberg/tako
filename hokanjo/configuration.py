@@ -1,14 +1,16 @@
 from __future__ import with_statement
 
-import pprint
 import yaml
 import simplejson as json
 import logging
 import os
 
+import paths
 from utils import testcase
 from utils.timestamp import Timestamp
 from models import Coordinator, Deployment
+
+MAX_CONFIGURATION_HISTORY = 10
 
 def try_load_specification(specification, timestamp=Timestamp.now()):
 	"""docstring for try_load_specification"""
@@ -44,32 +46,63 @@ def try_load_file(filepath, timestamp=None):
 		return None
 	return try_load_specification(specification, timestamp)
 
-TIME_FORMAT = '%Y%m%d%H%M%S-%%06d'
+def try_dump_file(filepath, configuration):
+	"""docstring for try_dump_file"""
+	try:
+		with open(filepath, 'w+') as f:
+			yaml.dump(configuration.specification(), f)
+		return True
+	except IOError, e:
+		logging.error('Failed to write configuration to file: %s', e)
+		return False
+	except OSError, e:
+		logging.error('Failed to write configuration to file: %s', e)
+		return False
+
+def list_persisted_configuration_files(configuration_directory, prefix):
+	"""docstring for list_persisted_configuration_files"""
+	try:
+		return sorted([filename for filename in os.listdir(configuration_directory) if os.path.splitext(filename)[1] == '.yaml' and filename.startswith(prefix)])
+	except OSError, e:
+		logging.debug(e)
+		return []
+
+def cleanup_persisted_configurations(configuration_directory, prefix):
+	"""docstring for cleanup_persisted_configurations"""
+	filenames = list_persisted_configuration_files(configuration_directory, prefix)
+	if len(filenames) > MAX_CONFIGURATION_HISTORY:
+		remove_count = len(filenames) - MAX_CONFIGURATION_HISTORY
+		remove_files = filenames[0:remove_count]
+		logging.debug('Removing files: %s' % ', '.join([repr(filename) for filename in remove_files]))
+		for filename in remove_files:
+			filepath = os.path.join(configuration_directory, filename)
+			try:
+				os.unlink(filepath)
+			except OSError, e:
+				logging.error('Failed to remove configuration file: %s', e)
+
 
 def read_persisted_configuration(configuration_directory, prefix):
 	"""docstring for read_persisted_configuration"""
-	try:
-		filenames = [filename for filename in os.listdir(configuration_directory) if os.path.splitext(filename)[1] == '.yaml' and filename.startswith(name)]
-	except OSError, e:
-		logging.debug(e)
-		return None
-	filenames.sort(reverse=True)
+	filenames = list_persisted_configuration_files(configuration_directory, prefix)
+	filenames.reverse()
 	for filename in filenames:
 		name, ext = os.path.splitext(filename)
-		name_parts = name.split('')
+		name_parts = name.split('.')
 		timestamp_string = name_parts[-1]
 		timestamp = Timestamp.loads(timestamp_string)
-		filepath = os.path.join(self.configuration_directory, filename)
-		persisted_configuration = configuration.try_load_file(filepath, timestamp)
+		filepath = os.path.join(configuration_directory, filename)
+		persisted_configuration = try_load_file(filepath, timestamp)
 		if persisted_configuration:
 			return persisted_configuration
 	return None
 
-def persist_configuration(self, prefix):
+def persist_configuration(configuration_directory, prefix, configuration):
 	"""docstring for persist_configuration"""
-	filename = '%s.%s.yaml' % (prefix, self.configuration.timestamp)
-	filepath = os.path.join(self.configuration_directory, filename)
-	configuration.try_dump_file(self.configuration)
+	filename = '%s.%s.yaml' % (prefix, configuration.timestamp)
+	filepath = os.path.join(configuration_directory, filename)
+	if try_dump_file(filepath, configuration):
+		cleanup_persisted_configurations(configuration_directory, prefix)
 
 def validate_specification(specification):
 	"""docstring for validate_specification"""
@@ -162,27 +195,41 @@ class Configuration(object):
 		"""docstring for find_neighbour_buckets"""
 		node_bucket = self.active_deployment.buckets[node.bucket_id]
 		key_buckets = self.active_deployment.consistent_hash.find_buckets(key)
-		return key_buckets - set([node_bucket])
+		key_buckets -= set([node_bucket])
+		if self.target_deployment:
+			key_buckets.update(self.target_deployment.consistent_hash.find_buckets(key))
+		return key_buckets
 
 
 class TestConfiguration(testcase.TestCase):
 	def testParsing(self):
-		import yaml
-		import paths
 		files = ['test/config.yaml', 'test/local_cluster.yaml', 'test/migration.yaml']
 		for f in files:
 			print
-			pp = pprint.PrettyPrinter()
 			filepath = paths.path(f)
 			with open(filepath) as specfile:
 				loaded_specification = yaml.load(specfile)
-				pp.pprint(loaded_specification)
 				timestamp = Timestamp.from_seconds(os.path.getmtime(filepath))
 				helper_loaded_configuration = try_load_file(filepath)
 				manually_loaded_configuration = Configuration(loaded_specification, timestamp)
 				self.assertEqual(manually_loaded_configuration.specification(), loaded_specification)
 				self.assertEqual(manually_loaded_configuration.specification(), helper_loaded_configuration.specification())
 				self.assertEqual(manually_loaded_configuration.timestamp, helper_loaded_configuration.timestamp)
+
+	def testPersistence(self):
+		"""docstring for testPersistence"""
+		files = ['test/config.yaml', 'test/local_cluster.yaml', 'test/migration.yaml']
+		prefix = 'test'
+		for f in files:
+			configuration_directory = self.tempdir()
+			filepath = paths.path(f)
+			configuration = try_load_file(filepath)
+			for i in xrange(0, 100):
+				configuration.timestamp = Timestamp.now()
+				persist_configuration(configuration_directory, prefix, configuration)
+				read_configuration = read_persisted_configuration(configuration_directory, prefix)
+				self.assertEqual(read_configuration.specification(), configuration.specification())
+				self.assertEqual(read_configuration.timestamp, configuration.timestamp)
 
 if __name__ == '__main__':
 	import unittest
