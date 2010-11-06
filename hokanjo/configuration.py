@@ -103,7 +103,8 @@ class Configuration(object):
 		self.target_deployment_name = specification.get('target_deployment', None)
 		self.target_deployment = self.target_deployment_name and self.deployments[self.target_deployment_name]
 		self.coordinators = dict((coordinator_id, Coordinator(coordinator_id, address, port)) for coordinator_id, (address, port) in specification.get('coordinators', {}).iteritems())
-		self.master_coordinator = specification.get('master_coordinator', None)
+		self.master_coordinator_id = specification.get('master_coordinator', None)
+		self.master_coordinator = self.coordinators.get(self.master_coordinator_id, None)
 		return True
 
 	def specification(self):
@@ -115,7 +116,7 @@ class Configuration(object):
 		if self.coordinators:
 			spec['coordinators'] = dict((coordinator.id, [coordinator.address, coordinator.port]) for coordinator in self.coordinators.itervalues())
 		if self.master_coordinator:
-			spec['master_coordinator'] = self.master_coordinator
+			spec['master_coordinator'] = self.master_coordinator_id
 		if self.target_deployment_name:
 			spec['target_deployment'] = self.target_deployment_name
 		return spec
