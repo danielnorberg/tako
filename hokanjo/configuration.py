@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 import pprint
 import yaml
 import simplejson as json
