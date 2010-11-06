@@ -6,6 +6,7 @@ import os, sys
 import httpserver
 import simplejson as json
 import configuration
+import time
 
 from configuration import Configuration
 
@@ -31,6 +32,7 @@ class CoordinatorServer(httpserver.HttpServer):
 		self.configuration = Configuration(configuration.specification())
 		self.coordinator = configuration.coordinators[self.id]
 		self.configuration_filepath = configuration_filepath
+		self.timestamp = time.time()
 		self.handlers = (
 			('/configuration', {'GET': self.configuration_GET}),
 		)
@@ -42,7 +44,10 @@ class CoordinatorServer(httpserver.HttpServer):
 
 	def configuration_GET(self, start_response, path, body, env):
 		"""docstring for configuration_GET"""
-		start_response('200 OK', [('Content-Type', 'application/json')])
+		start_response('200 OK', [
+			('Content-Type', 'application/json'),
+			('X-TimeStamp', repr(self.timestamp)),
+		])
 		return [json.dumps(self.configuration.specification())]
 
 def main():
