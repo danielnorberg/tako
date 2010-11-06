@@ -32,6 +32,7 @@ def launch(profiling=False, debug=False):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description="Launcher")
-	parser.add_argument('-p', '--profiling', help='Enable profiling', action='store_true', default=True)
+	parser.add_argument('-p', '--profiling', help='Enable profiling', action='store_true')
+	parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
 	args = parser.parse_args()
-	launch(args.profiling)
+	launch(args.profiling, args.debug)
