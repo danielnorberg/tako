@@ -13,19 +13,17 @@ def launch():
 	cfg = Configuration(yaml.load(open(paths.path('test/local_cluster.yaml'))))
 	coordinator_cmds = ['python bin/hokanjo-coordinator -id %s -cfg test/local_cluster.yaml &> var/log/coordinator-%s.log' % (coordinator.id, coordinator.id) for coordinator in cfg.coordinators.itervalues()]
 	node_cmds = ['python bin/hokanjo-node -id %s -c localhost 4701 &> var/log/node-%s.log' % (node.id, node.id) for node in cfg.active_deployment.nodes.itervalues()]
-	coordinator_processes = [subprocess.Popen(cmd, shell=True) for cmd in coordinator_cmds]
+	for cmd in coordinator_cmds:
+		subprocess.Popen(cmd, shell=True)
 	time.sleep(1)
-	node_processes = [subprocess.Popen(cmd, shell=True) for cmd in node_cmds]
+	for cmd in node_cmds:
+		subprocess.Popen(cmd, shell=True)
+
 	try:
 		while True:
 			raw_input()
 	except:
 		pass
-
-	for process in coordinator_processes:
-		process.terminate()
-	for process in node_processes:
-		process.terminate()
 
 	print 'Exiting...'
 
