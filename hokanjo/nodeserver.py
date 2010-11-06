@@ -96,7 +96,7 @@ class NodeServer(httpserver.HttpServer):
 	def store_POST(self, start_response, path, body, env):
 		key = self.unquote(path)
 		value = body.read()
-		timestamp = self.try_get_timestamp(env)
+		timestamp = self.get_timestamp(env)
 		logging.debug("key: %s, timestamp: %s", repr(key), timestamp)
 		self.store.set(key, value, timestamp)
 		self.propagate(key, value, timestamp)
@@ -126,7 +126,7 @@ class NodeServer(httpserver.HttpServer):
 		"""docstring for internal_POST"""
 		key = self.unquote(path)
 		value = body.read()
-		timestamp = self.try_get_timestamp(env)
+		timestamp = self.get_timestamp(env)
 		logging.debug("key: %s, timestamp: %s", repr(key), timestamp)
 		self.store.set(key, value, timestamp)
 		start_response('200 OK', [
@@ -194,8 +194,8 @@ class NodeServer(httpserver.HttpServer):
 		timestamps = sorted(greenlet.value for greenlet in greenlets)
 		return timestamps
 
-	def try_get_timestamp(self, env):
-		"""docstring for try_get_timestamp"""
+	def get_timestamp(self, env):
+		"""docstring for get_timestamp"""
 		try:
 			return Timestamp.try_loads(env.get('HTTP_X_TIMESTAMP', None)) or Timestamp.now()
 		except ValueError:
