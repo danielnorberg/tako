@@ -15,6 +15,7 @@ from utils import http
 
 from store import Store
 import configuration
+from configurationcache import ConfigurationCache
 from configuration import Coordinator
 from coordinatorclient import CoordinatorClient
 
@@ -25,6 +26,7 @@ class NodeServer(httpserver.HttpServer):
 		self.var_directory = os.path.join(paths.home, var_directory)
 		self.store_file = store_file or os.path.join(self.var_directory, 'data', '%s.tch' % self.id)
 		self.configuration_directory = os.path.join(self.var_directory, 'etc', str(node_id))
+		self.configuration_cache = ConfigurationCache(self.configuration_directory, 'nodeserver-%s' % self.id)
 		self.store = Store(self.store_file)
 		self.store.open()
 		self.handlers = (
@@ -38,9 +40,9 @@ class NodeServer(httpserver.HttpServer):
 		if explicit_configuration:
 			self.evaluate_new_configuration(explicit_configuration)
 		else:
-			persisted_configuration = configuration.read_persisted_configuration(self.configuration_directory, prefix='nodeserver')
-			if persisted_configuration:
-				self.evaluate_new_configuration(persisted_configuration)
+			cached_configuration = self.configuration_cache.get_configuration()
+			if cached_configuration:
+				self.evaluate_new_configuration(cached_configuration)
 
 	def evaluate_new_configuration(self, new_configuration):
 		"""docstring for evaluate_new_configuration"""
@@ -56,7 +58,7 @@ class NodeServer(httpserver.HttpServer):
 		self.node = self.deployment.nodes[self.id]
 		self.siblings = self.deployment.siblings(self.id)
 		self.port = self.node.port
-		configuration.persist_configuration()
+		self.configuration_cache.cache_configuration(self.configuration)
 
 	def serve(self):
 		"""docstring for server"""
