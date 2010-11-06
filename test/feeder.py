@@ -22,13 +22,16 @@ def main():
 
 	base_url = 'http://%s:%d/store/' % (args.address, args.port)
 
+	last_time = time.time()
 	print 'feeding %s' % base_url
 	i = 0
 	while True:
 		key = str(i)
 		value = sha256(i)
 		url = base_url + key
-		print i
+		if time.time() - last_time > 1:
+			last_time = time.time()
+			print i
 		try:
 			print 'Posting to %s' % url
 			headers = {
