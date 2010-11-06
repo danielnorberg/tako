@@ -1,1 +1,1 @@
-hokanjo/paths.py
+../hokanjo/paths.py
