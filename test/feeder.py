@@ -13,9 +13,9 @@ def sha256(v):
 def main():
 	"""docstring for main"""
 
-	parser = argparse.ArgumentParser(description="Gevent test feeder.")
-	parser.add_argument('-a', '--address', default='localhost')
-	parser.add_argument('-p', '--port', type=int, default=8088)
+	parser = argparse.ArgumentParser(description="Hokanjo test feeder.")
+	parser.add_argument('address')
+	parser.add_argument('port', type=int)
 	parser.add_argument('-l', '--limit', type=int, default=0)
 	parser.add_argument('-d', '--delay', type=float, default=1)
 	args = parser.parse_args()
