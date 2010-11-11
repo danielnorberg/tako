@@ -6,9 +6,6 @@ import struct
 
 from utils.timestamp import Timestamp
 
-KEY_PREFIX = 'k'
-TIME_PREFIX = 't'
-
 class Store(object):
 	"""docstring for Store"""
 	def __init__(self, filepath):
