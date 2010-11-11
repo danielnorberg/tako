@@ -46,7 +46,11 @@ def try_load_file(filepath, timestamp=None):
 
 def try_dump_file(filepath, configuration):
 	"""docstring for try_dump_file"""
+	logging.debug(filepath)
 	try:
+		dirpath = os.path.dirname(filepath)
+		if not os.path.exists(dirpath):
+			os.makedirs(dirpath)
 		with open(filepath, 'w+') as f:
 			yaml.dump(configuration.specification(), f)
 		return True
