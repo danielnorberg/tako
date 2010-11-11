@@ -24,7 +24,7 @@ class NodeServer(httpserver.HttpServer):
 		super(NodeServer, self).__init__()
 		self.id = node_id
 		self.var_directory = os.path.join(paths.home, var_directory)
-		self.store_file = store_file or os.path.join(self.var_directory, 'data', '%s.tch' % self.id)
+		self.store_file = store_file or os.path.join(self.var_directory, 'data', '%s.tcb' % self.id)
 		self.configuration_directory = os.path.join(self.var_directory, 'etc', str(node_id))
 		self.configuration_cache = ConfigurationCache(self.configuration_directory, 'nodeserver-%s' % self.id)
 		self.store = Store(self.store_file)
@@ -211,9 +211,11 @@ class NodeServer(httpserver.HttpServer):
 			neighbour_buckets = self.configuration.find_neighbour_buckets(key, self.node)
 			neighbour_bucket_nodes = [node for bucket in neighbour_buckets for node in bucket]
 			target_nodes = self.siblings + neighbour_bucket_nodes
-		greenlets = [gevent.spawn(self.send, key, value, timestamp, node) for node in target_nodes]
-		logging.debug('target nodes: %s' % repr(target_nodes))
-		gevent.joinall(greenlets)
+		# greenlets = [gevent.spawn(self.send, key, value, timestamp, node) for node in target_nodes]
+		# logging.debug('target nodes: %s' % repr(target_nodes))
+		# gevent.joinall(greenlets)
+		for node in target_nodes:
+			self.send(key, value, timestamp, node)
 
 	def read_repair(self, key, value, timestamp):
 		"""docstring for read_repair"""
