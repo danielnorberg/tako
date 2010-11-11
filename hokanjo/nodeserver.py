@@ -25,7 +25,7 @@ class NodeServer(httpserver.HttpServer):
 		self.id = node_id
 		self.var_directory = os.path.join(paths.home, var_directory)
 		self.store_file = store_file or os.path.join(self.var_directory, 'data', '%s.tcb' % self.id)
-		self.configuration_directory = os.path.join(self.var_directory, 'etc', str(node_id))
+		self.configuration_directory = os.path.join(self.var_directory, 'etc')
 		self.configuration_cache = ConfigurationCache(self.configuration_directory, 'nodeserver-%s' % self.id)
 		self.store = Store(self.store_file)
 		self.store.open()
