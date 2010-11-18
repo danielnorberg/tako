@@ -1,9 +1,7 @@
 import argparse
 import urllib2
-import gevent, gevent.monkey
 import hashlib
 import time
-gevent.monkey.patch_all()
 
 def sha256(v):
 	sha = hashlib.sha256()
@@ -43,7 +41,7 @@ def main():
 			i += 1
 		except IOError:
 			print 'Failed...'
-		gevent.sleep(args.delay)
+		time.sleep(args.delay)
 		if args.limit > 0 and i >= args.limit:
 			break
 
