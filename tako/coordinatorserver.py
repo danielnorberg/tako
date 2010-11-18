@@ -51,7 +51,7 @@ class CoordinatorServer(httpserver.HttpServer):
 def main():
 	debug.configure_logging('coordinatorserver')
 
-	parser = argparse.ArgumentParser(description="Hokanjo Coordinator")
+	parser = argparse.ArgumentParser(description="Tako Coordinator")
 	parser.add_argument('-id', '--id', help='Server id. Default = 1', default='c1')
 	parser.add_argument('-cfg','--config', help='Config file.', default='test/local_cluster.yaml')
 
@@ -67,7 +67,7 @@ def main():
 		print >> sys.stderr, 'Failed to load configuration.'
 		exit(-1)
 
-	print 'Hokanjo Coordinator'
+	print 'Tako Coordinator'
 	print '-' * 80
 	print 'Coordinator id: %s' % args.id
 	print 'Config file: %s' % (args.config)

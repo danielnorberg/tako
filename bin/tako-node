@@ -5,5 +5,5 @@ import sys, os, string
 home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
 sys.path.insert(0, home)
 
-from hokanjo import coordinatorserver
-coordinatorserver.main()
+from tako import nodeserver
+nodeserver.main()

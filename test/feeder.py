@@ -13,7 +13,7 @@ def sha256(v):
 def main():
 	"""docstring for main"""
 
-	parser = argparse.ArgumentParser(description="Hokanjo test feeder.")
+	parser = argparse.ArgumentParser(description="Tako test feeder.")
 	parser.add_argument('address')
 	parser.add_argument('port', type=int)
 	parser.add_argument('-l', '--limit', type=int, default=0)

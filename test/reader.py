@@ -6,7 +6,7 @@ gevent.monkey.patch_all()
 def main():
 	"""docstring for main"""
 
-	parser = argparse.ArgumentParser(description="Hokanjo test reader.")
+	parser = argparse.ArgumentParser(description="Tako test reader.")
 	parser.add_argument('address')
 	parser.add_argument('port', type=int)
 	parser.add_argument('-l', '--limit', type=int, default=0)

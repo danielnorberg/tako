@@ -252,7 +252,7 @@ def _main(args):
 			print >> sys.stderr, 'Configuration for Node (id = %s) not found in configuration' % args.id
 			exit(-1)
 
-	print 'Hokanjo Node'
+	print 'Tako Node'
 	print '-' * 80
 	print 'Node id: %s' % args.id
 
@@ -275,7 +275,7 @@ def _main(args):
 	print 'Exiting...'
 
 def main():
-	parser = argparse.ArgumentParser(description="Hokanjo Node")
+	parser = argparse.ArgumentParser(description="Tako Node")
 	parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
 	parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
 	parser.add_argument('-f','--file', help='Database file.')
