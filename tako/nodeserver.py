@@ -1,6 +1,6 @@
 import gevent, gevent.monkey
 gevent.monkey.patch_all()
-import urllib, urllib2
+import urllib
 import argparse
 import logging
 from utils import debug
@@ -160,10 +160,7 @@ class NodeServer(httpserver.HttpServer):
 		path = self.quote(key)
 		try:
 			url = node.internal_url() + path
-			request = urllib2.Request(url, value, {'X-TimeStamp': str(timestamp)})
-			stream = urllib2.urlopen(request)
-			stream.read()
-			stream.close()
+			http.post(url, value, {'X-TimeStamp': str(timestamp)})
 		except IOError, e:
 			logging.error('Failed to post data to sibling (%s): %s', node, e)
 

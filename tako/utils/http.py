@@ -1,4 +1,4 @@
-import urllib
+import urllib, urllib2
 import logging
 
 def fetch(url, tries=3):
@@ -14,3 +14,10 @@ def fetch(url, tries=3):
 		except IOError, e:
 			logging.error('Error: %s', e)
 			return (None, None)
+
+def post(url, value, headers={}):
+	"""docstring for post"""
+	request = urllib2.Request(url, value, headers)
+	stream = urllib2.urlopen(request)
+	stream.read()
+	stream.close()
