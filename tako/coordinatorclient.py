@@ -1,12 +1,18 @@
 import logging
-import gevent
-import configuration
 import unittest
-from utils import testcase
-import paths
 
+from syncless import coio
+
+from syncless import patch
+patch.patch_socket()
+
+from utils import runner
+from utils import testcase
 from utils.timestamp import Timestamp
-from utils import http, convert
+from utils import http
+
+import configuration
+import paths
 from coordinatorserver import CoordinatorServer
 
 class CoordinatorClient(object):
@@ -16,12 +22,12 @@ class CoordinatorClient(object):
 		self.coordinators = coordinators
 		self.callbacks = callbacks
 		self.interval = interval
-		self.greenlet = None
+		self.configuration_fetcher = None
 		self.configuration = None
 
 	def start(self):
 		"""docstring for start"""
-		self.greenlet = gevent.spawn(self.fetch_configurations)
+		self.configuration_fetcher = runner.spawn(self.fetch_configurations)
 
 	def broadcast(self):
 		"""docstring for broadcast"""
@@ -51,16 +57,14 @@ class CoordinatorClient(object):
 		while True:
 			# logging.debug('coordinators: %s', self.coordinators)
 			if self.coordinators:
-				greenlets = [gevent.spawn(self.fetch_configuration, coordinator) for coordinator in self.coordinators]
-				gevent.joinall(greenlets)
-				configurations = sorted(greenlet.value for greenlet in greenlets)
-				# logging.debug('configurations: %s', configurations)
+				configurations = runner.run([runner.task(self.fetch_configuration, coordinator) for coordinator in self.coordinators])
+				configurations.sort()
 				for new_configuration, source_coordinator in configurations:
 					if new_configuration and (not self.configuration or new_configuration.timestamp > self.configuration.timestamp):
 						self.set_configuration(new_configuration)
 						self.broadcast()
 						break
-			gevent.sleep(self.interval)
+			coio.sleep(self.interval)
 
 class TestCoordinatorClient(testcase.TestCase):
 	def callback(self, new_configuration):
@@ -72,19 +76,20 @@ class TestCoordinatorClient(testcase.TestCase):
 		cfg_filepath = 'test/local_cluster.yaml'
 		cfg = configuration.try_load_file(paths.path(cfg_filepath))
 		coordinator_server = CoordinatorServer(cfg.master_coordinator_id, cfg, cfg_filepath)
-		coordinator_greenlet = gevent.spawn(coordinator_server.serve)
-		gevent.sleep(0)
+		coordinator_server_task = runner.spawn(coordinator_server.serve)
+		coio.stackless.schedule()
 		self.new_configuration = None
 		self.new_timestamp = None
 		client = CoordinatorClient(coordinators=[cfg.master_coordinator], callbacks=[self.callback])
 		client.start()
 		for i in xrange(0, 1000):
-			gevent.sleep(0)
+			coio.stackless.schedule()
 			if self.new_configuration or self.new_timestamp:
 				break
+		assert cfg.specification() == self.new_configuration.specification()
 		print 'Fetched configuration: ', self.new_configuration
 		print 'Timestamp', self.new_timestamp
-		coordinator_greenlet.kill()
+		coordinator_server_task.kill()
 
 
 if __name__ == '__main__':

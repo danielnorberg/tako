@@ -16,7 +16,7 @@ def path(_path):
 	"""docstring for path"""
 	return os.path.join(home, _path)
 
-home = parent(find_root('tako'))
+home = parent(find_root('test'))
 data = os.path.join(home, 'var', 'data')
 log = os.path.join(home, 'var', 'log')
 

@@ -1,5 +1,3 @@
-import gevent, gevent.monkey
-gevent.monkey.patch_all()
 import urllib
 import argparse
 import logging
@@ -9,7 +7,13 @@ import email.utils
 import httpserver
 import paths
 
+from syncless import coio
+
+from syncless import patch
+patch.patch_socket()
+
 from utils.timestamp import Timestamp
+from utils import runner
 from utils import convert
 from utils import http
 
@@ -66,7 +70,7 @@ class NodeServer(httpserver.HttpServer):
 		logging.info('Checking Configuration.')
 		while not self.configuration:
 			logging.debug('Waiting for configuration.')
-			gevent.sleep(1)
+			coio.sleep(1)
 		super(NodeServer, self).serve()
 
 	def quote(self, key):
@@ -189,9 +193,8 @@ class NodeServer(httpserver.HttpServer):
 		neighbour_bucket_nodes = [node for bucket in neighbour_buckets for node in bucket]
 		target_nodes = self.siblings + neighbour_bucket_nodes
 		logging.debug('target nodes: %s', target_nodes)
-		greenlets = [gevent.spawn(self.fetch_timestamp, key, node) for node in target_nodes]
-		gevent.joinall(greenlets)
-		timestamps = sorted(greenlet.value for greenlet in greenlets)
+		timestamps = runner.run([runner.task(self.fetch_timestamp, key, node) for node in target_nodes])
+		timestamps.sort()
 		return timestamps
 
 	def get_timestamp(self, env):
@@ -208,11 +211,7 @@ class NodeServer(httpserver.HttpServer):
 			neighbour_buckets = self.configuration.find_neighbour_buckets(key, self.node)
 			neighbour_bucket_nodes = [node for bucket in neighbour_buckets for node in bucket]
 			target_nodes = self.siblings + neighbour_bucket_nodes
-		# greenlets = [gevent.spawn(self.send, key, value, timestamp, node) for node in target_nodes]
-		# logging.debug('target nodes: %s' % repr(target_nodes))
-		# gevent.joinall(greenlets)
-		for node in target_nodes:
-			self.send(key, value, timestamp, node)
+		runner.run([runner.task(self.send, key, value, timestamp, node) for node in target_nodes])
 
 	def read_repair(self, key, value, timestamp):
 		"""docstring for read_repair"""

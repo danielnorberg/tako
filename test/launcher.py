@@ -1,11 +1,11 @@
 import yaml
 import subprocess
-import os, sys
+import os
 import time
 import argparse
 
 import paths
-sys.path.insert(0, paths.home)
+
 from tako.configuration import Configuration
 
 def launch(profiling=False, debug=False):
