@@ -1,7 +1,9 @@
 import argparse
-import urllib2
+import urllib3
 import hashlib
 import time
+
+import logging
 
 def sha256(v):
 	sha = hashlib.sha256()
@@ -16,28 +18,31 @@ def main():
 	parser.add_argument('port', type=int)
 	parser.add_argument('-l', '--limit', type=int, default=0)
 	parser.add_argument('-d', '--delay', type=float, default=1)
+	parser.add_argument('-v', '--verbose', type=bool, default=False)
 	args = parser.parse_args()
 
-	base_url = 'http://%s:%d/store/' % (args.address, args.port)
+	if args.verbose:
+		logging.basicConfig(level=logging.DEBUG)
+	else:
+		logging.basicConfig(level=logging.ERROR)
+
+	host_url = 'http://%s:%d/' % (args.address, args.port)
+	http_pool = urllib3.connection_from_url(host_url)
+
 
 	last_time = time.time()
-	print 'feeding %s' % base_url
+	print 'feeding %s' % host_url
 	i = 0
 	while True:
 		key = str(i)
 		value = sha256(i)
-		url = base_url + key
+		url = '/store/' + key
 		if time.time() - last_time > 1:
 			last_time = time.time()
 			print i
 			print 'Posting to %s' % url
 		try:
-			headers = {
-				# 'X-TimeStamp':time.time()
-			}
-			request = urllib2.Request(url, value, headers)
-			stream = urllib2.urlopen(request)
-			stream.close()
+			r = http_pool.urlopen('POST', url, body=value)
 			i += 1
 		except IOError:
 			print 'Failed...'
