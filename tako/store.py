@@ -53,7 +53,7 @@ class Store(object):
 
 	def set_timestamped(self, key, timestamped_value):
 		"""docstring for set_timestamped"""
-		value, timestamp = self.unpack_timestamped_data(timestamped_value)
+		# value, timestamp = self.unpack_timestamped_data(timestamped_value)
 		#logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
 		# #logging.debug('key: %s, value: %s', repr(key), repr(timestamped_value[0:16]))
 		# self.begin()
