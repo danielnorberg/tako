@@ -198,11 +198,10 @@ class NodeServer(object):
 		return urllib.unquote_plus(path)
 
 	def store_GET(self, start_response, path, body, env):
-		# logging.debug("path: %s", path)
 		key = self.unquote(path)
 		timestamped_value = self.store.get_timestamped(key)
 
-		logging.debug('key: %s, timestamped_value: %s', key, timestamped_value)
+		logging.debug('key: %s', key)
 
 		if self.read_repair_enabled:
 			timestamped_value = self.read_repair(key, timestamped_value)
@@ -233,67 +232,9 @@ class NodeServer(object):
 		])
 		return ['']
 
-	# def internal_GET(self, start_response, path, body, env):
-	# 	"""docstring for internal_GET"""
-	# 	# logging.debug("path: %s", path)
-	# 	key = self.unquote(path)
-	# 	value, timestamp = self.store.get(key)
-	# 	if value:
-	# 		start_response('200 OK', [
-	# 			('Content-Type', 'application/octet-stream'),
-	# 			('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
-	# 			('X-TimeStamp', str(timestamp)),
-	# 		])
-	# 		return [value]
-	# 	else:
-	# 		start_response('404 Not Found', [])
-	# 		return ['']
-	#
-	# def internal_POST(self, start_response, path, body, env):
-	# 	"""docstring for internal_POST"""
-	# 	key = self.unquote(path)
-	# 	value = body.read()
-	# 	timestamp = self.get_timestamp(env)
-	# 	# logging.debug("key: %s, timestamp: %s", repr(key), timestamp)
-	# 	self.store.set(key, value, timestamp)
-	# 	start_response('200 OK', [
-	# 		('Content-Type', 'application/octet-stream'),
-	# 		('X-TimeStamp', str(timestamp)),
-	# 	])
-	# 	return ['']
-
-	# def stat_GET(self, start_response, path, body, env):
-	# 	"""docstring for stat_GET"""
-	# 	# logging.debug("path: %s", path)
-	# 	key = self.unquote(path)
-	# 	value, timestamp = self.store.get(key)
-	# 	# logging.debug("path: %s, timestamp: %s", repr(path), timestamp)
-	# 	if value:
-	# 		start_response('200 OK', [
-	# 			('Content-Type', 'application/octet-stream'),
-	# 			('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
-	# 			('X-TimeStamp', str(timestamp)),
-	# 		])
-	# 		return [str(timestamp)]
-	# 	else:
-	# 		start_response('404 Not Found', [])
-	# 		return ['']
-
-	# def send(self, key, value, timestamp, node):
-	# 	# logging.debug('key: %s, timestamp: %s, node: %s', repr(key), str(timestamp), node)
-
-	# def send(self, key, value, timestamp, node):
-	# 	# logging.debug('key: %s, timestamp: %s, node: %s', repr(key), str(timestamp), node)
-	# 	path = self.quote(key)
-	# 	try:
-	# 		url = node.internal_url() + path
-	# 		http.post(url, value, {'X-TimeStamp': str(timestamp)})
-	# 	except IOError, e:
-	# 		logging.error('Failed to post data to sibling (%s): %s', node, e)
-
 	def fetch_value(self, key, node):
 		"""docstring for fetch_value"""
-		# logging.debug('key: %s, node: %s', repr(key), node)
+		logging.debug('key: %s, node: %s', key, node)
 		messengers = self.messengers_for_nodes([node])
 		message = self.request_message(Requests.GET_VALUE, key)
 		broadcast = Broadcast(messengers)
@@ -306,17 +247,13 @@ class NodeServer(object):
 
 	def fetch_timestamps(self, key):
 		"""docstring for fetch_timestamps"""
-		# logging.debug('key: %s', repr(key))
+		logging.debug('key: %s', key)
 		neighbour_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
-		# logging.debug('target nodes: %s', neighbour_nodes)
 		messengers = self.messengers_for_nodes(neighbour_nodes)
-		# logging.debug('messengers: %s', messengers)
 		message = self.request_message(Requests.GET_TIMESTAMP, key)
 		broadcast = Broadcast(messengers)
 		replies = broadcast.send(message)
-		# logging.debug('replies: %s', replies)
 		timestamps = [(self.store.read_timestamp(timestamp_data[1:]) if timestamp_data and timestamp_data[0] == Responses.OK else None, node) for timestamp_data, node in replies]
-		# logging.debug('timestamps: %s', timestamps)
 		return timestamps
 
 	def get_timestamp(self, env):
@@ -333,28 +270,24 @@ class NodeServer(object):
 
 	def propagate(self, key, timestamped_value, target_nodes = []):
 		"""docstring for propagate"""
-		# logging.debug('key: %s, timestamped_value:%s', repr(key), repr(timestamped_value))
+		logging.debug('key: %s', key)
 		if not target_nodes:
 			target_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
 		if not target_nodes:
 			return
-		# logging.debug('target_nodes: %s', target_nodes)
 		message = self.request_message(Requests.SET_VALUE, key, timestamped_value)
 		messengers = self.messengers_for_nodes(target_nodes)
-		# logging.debug('message: %s', message[0:32])
-		# logging.debug('messengers: %s', messengers)
 		broadcast = Broadcast(messengers)
 		results = broadcast.send(message)
-		# logging.debug('results: %s', results)
 
 	def read_repair(self, key, timestamped_value):
 		"""docstring for read_repair"""
 		timestamp = self.store.read_timestamp(timestamped_value) if timestamped_value else None
-		# logging.debug('key: %s, timestamp: %s', key, timestamp)
+		logging.debug('key: %s, timestamp: %s', key, timestamp)
 		remote_timestamps = self.fetch_timestamps(key)
-		# logging.debug('remote: %s', remote_timestamps)
+		logging.debug('remote: %s', remote_timestamps)
 		newer = [(remote_timestamp, node) for remote_timestamp, node in remote_timestamps if remote_timestamp > timestamp]
-		# logging.debug('newer: %s', newer)
+		logging.debug('newer: %s', newer)
 		if newer:
 			latest_timestamp, latest_node = newer[-1]
 			latest_timestamped_value = self.fetch_value(key, latest_node)
@@ -364,7 +297,7 @@ class NodeServer(object):
 				self.store.set_timestamped(key, latest_timestamped_value)
 
 		older = [(remote_timestamp, node) for remote_timestamp, node in remote_timestamps if remote_timestamp <	timestamp]
-		# logging.debug('older: %s', older)
+		logging.debug('older: %s', older)
 		if older:
 			older_nodes = [node for (remote_timestamp, node) in older]
 			self.propagate(key, timestamped_value, older_nodes)
