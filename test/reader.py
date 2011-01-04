@@ -1,7 +1,6 @@
 import argparse
 import urllib
-import gevent, gevent.monkey
-gevent.monkey.patch_all()
+import time
 
 def main():
 	"""docstring for main"""
@@ -29,7 +28,8 @@ def main():
 			i += 1
 		except IOError, e:
 			print e
-		gevent.sleep(args.delay)
+		if args.delay:
+			time.sleep(args.delay)
 		if args.limit > 0 and i >= args.limit:
 			break
 

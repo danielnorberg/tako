@@ -18,7 +18,7 @@ def main():
 	parser.add_argument('port', type=int)
 	parser.add_argument('-l', '--limit', type=int, default=0)
 	parser.add_argument('-d', '--delay', type=float, default=1)
-	parser.add_argument('-v', '--verbose', type=bool, default=False)
+	parser.add_argument('-v', '--verbose', action='store_true')
 	args = parser.parse_args()
 
 	if args.verbose:
@@ -46,7 +46,8 @@ def main():
 			i += 1
 		except IOError:
 			print 'Failed...'
-		time.sleep(args.delay)
+		if args.delay:
+			time.sleep(args.delay)
 		if args.limit > 0 and i >= args.limit:
 			break
 

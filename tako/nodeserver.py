@@ -4,26 +4,113 @@ import logging
 from utils import debug
 import os, sys
 import email.utils
-import httpserver
-import paths
+import struct
 
 from syncless import coio
 
 from syncless import patch
 patch.patch_socket()
 
-from utils.timestamp import Timestamp
-from utils import runner
-from utils import convert
-from utils import http
+from socketless.messenger import Messenger
+from socketless.channelserver import ChannelServer
+from socketless.channel import DisconnectedException
+from socketless.broadcast import Broadcast
 
+from utils.timestamp import Timestamp
+# from utils import runner
+from utils import convert
+# from utils import http
+
+from httpserver import HttpServer
+import paths
 from store import Store
 import configuration
 from configurationcache import ConfigurationCache
 from configuration import Coordinator
-from coordinatorclient import CoordinatorClient
+# from coordinatorclient import CoordinatorClient
 
-class NodeServer(httpserver.HttpServer):
+class MessageReader(object):
+	"""docstring for MessageReader"""
+	def __init__(self, message):
+		super(MessageReader, self).__init__()
+		self.message = message
+		self.i = 0
+
+	def read(self, length=0):
+		"""docstring for read"""
+		assert self.message
+		assert self.i + length <= len(self.message)
+		if not length:
+			length = len(self.message) - self.i
+		if length > 1024:
+			data = buffer(self.message, self.i, length)
+		else:
+			data = self.message[self.i:self.i+length]
+		self.i += length
+		return data
+
+	def read_int(self):
+		return struct.unpack('!L', self.read(4))
+
+class Requests:
+	GET_VALUE = 'G'
+ 	SET_VALUE = 'S'
+	GET_TIMESTAMP = 'T'
+
+class Responses:
+	OK = 'K'
+	NOT_FOUND = 'N'
+
+class InternalServer(object):
+	"""docstring for Server"""
+	def __init__(self, listener, node_server):
+		super(InternalServer, self).__init__()
+		self.listener = listener
+		self.channel_server = ChannelServer(self.listener, handle_connection=self.handle_connection)
+		self.node_server = node_server
+
+	def handle_connection(self, channel, addr):
+		"""docstring for handle_connection"""
+		try:
+			while True:
+				message = channel.recv()
+				if not message:
+					break
+				reader = MessageReader(message)
+				operation = reader.read(1)
+				if operation == Requests.GET_VALUE:
+					key_length = reader.read_int(4)
+					key = message.read()
+					timestamped_value = self.node_server.store.get_timestamped(key)
+					if timestamped_value:
+						channel.send(Responses.OK + timestamped_value)
+					else:
+						channel.send(Responses.NOT_FOUND)
+				if operation == Requests.SET_VALUE:
+					key_length = message.read_int(4)
+					value_length = message.read_int(4)
+					key = message.read(key_length)
+					value = message.read(value_length)
+					self.node_server.store.set_timestamped(value)
+					channel.send(Responses.OK)
+				if operation == Requests.GET_TIMESTAMP:
+					key_length = message.read_int(4)
+					key = message.read(key_length)
+					value, timestamp = self.node_server.store.get(key)
+					if timestamp:
+						channel.send(str(timestamp))
+					else:
+						channel.send(Responses.NOT_FOUND)
+			channel.close()
+		except DisconnectedException:
+			logging.info('client %s disconnected', addr)
+
+	def serve(self):
+		logging.info("Listening on %s", self.listener)
+		self.channel_server.serve()
+
+
+class NodeServer(object):
 	def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinators=[], var_directory='var'):
 		super(NodeServer, self).__init__()
 		self.id = node_id
@@ -33,19 +120,22 @@ class NodeServer(httpserver.HttpServer):
 		self.configuration_cache = ConfigurationCache(self.configuration_directory, 'nodeserver-%s' % self.id)
 		self.store = Store(self.store_file)
 		self.store.open()
-		self.handlers = (
+		self.node_messengers = {}
+		self.http_handlers = (
 			('/store/', {'GET':self.store_GET, 'POST':self.store_POST}),
-			('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
-			('/stat/', {'GET':self.stat_GET}),
+			# ('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
+			# ('/stat/', {'GET':self.stat_GET}),
 		)
-		self.coordinator_client = CoordinatorClient(coordinators=coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
+		# self.coordinator_client = CoordinatorClient(coordinators=coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
 
 		self.configuration = None
 		if explicit_configuration:
+			logging.debug('using explicit configuration')
 			self.evaluate_new_configuration(explicit_configuration)
 		else:
 			cached_configuration = self.configuration_cache.get_configuration()
 			if cached_configuration:
+				logging.debug('using cached configuration')
 				self.evaluate_new_configuration(cached_configuration)
 
 	def evaluate_new_configuration(self, new_configuration):
@@ -61,17 +151,36 @@ class NodeServer(httpserver.HttpServer):
 		self.read_repair_enabled = self.configuration.active_deployment.read_repair_enabled
 		self.node = self.deployment.nodes[self.id]
 		self.siblings = self.deployment.siblings(self.id)
-		self.port = self.node.port
+		self.http_port = self.node.http_port
 		self.configuration_cache.cache_configuration(self.configuration)
+		for messenger in self.node_messengers.values():
+			messenger.close()
+		neighbour_nodes = self.configuration.find_neighbour_nodes_for_node(self.node)
+		logging.debug('neighbour_nodes = %s', neighbour_nodes)
+		self.node_messengers = dict((node.id, Messenger((node.address, node.raw_port))) for node in neighbour_nodes)
 
 	def serve(self):
 		"""docstring for server"""
-		self.coordinator_client.start()
+		# self.coordinator_client.start()
 		logging.info('Checking Configuration.')
 		while not self.configuration:
 			logging.debug('Waiting for configuration.')
 			coio.sleep(1)
-		super(NodeServer, self).serve()
+		self.internal_server = InternalServer(listener=(self.node.address, self.node.raw_port), node_server=self)
+		self.internal_server.serve()
+		self.http_server = HttpServer(listener=(self.node.address, self.node.http_port), handlers=self.http_handlers)
+		self.http_server.serve()
+
+	def request_message(self, request, key=None, value=None):
+		"""docstring for message"""
+		if not key:
+			return request
+		else:
+			if value:
+				fragments = (struct.pack('!cLL', request, len(key), len(value)), key, value)
+			else:
+				fragments = (struct.pack('!cL', request, len(key)), key)
+			return ''.join(fragments)
 
 	def quote(self, key):
 		"""docstring for quote"""
@@ -111,90 +220,86 @@ class NodeServer(httpserver.HttpServer):
 			('Content-Type', 'application/octet-stream'),
 			('X-TimeStamp', str(timestamp)),
 		])
+		logging.debug(4)
 		return ['']
 
-	def internal_GET(self, start_response, path, body, env):
-		"""docstring for internal_GET"""
-		logging.debug("path: %s", path)
-		key = self.unquote(path)
-		value, timestamp = self.store.get(key)
-		if value:
-			start_response('200 OK', [
-				('Content-Type', 'application/octet-stream'),
-				('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
-				('X-TimeStamp', str(timestamp)),
-			])
-			return [value]
-		else:
-			start_response('404 Not Found', [])
-			return ['']
+	# def internal_GET(self, start_response, path, body, env):
+	# 	"""docstring for internal_GET"""
+	# 	logging.debug("path: %s", path)
+	# 	key = self.unquote(path)
+	# 	value, timestamp = self.store.get(key)
+	# 	if value:
+	# 		start_response('200 OK', [
+	# 			('Content-Type', 'application/octet-stream'),
+	# 			('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
+	# 			('X-TimeStamp', str(timestamp)),
+	# 		])
+	# 		return [value]
+	# 	else:
+	# 		start_response('404 Not Found', [])
+	# 		return ['']
+	#
+	# def internal_POST(self, start_response, path, body, env):
+	# 	"""docstring for internal_POST"""
+	# 	key = self.unquote(path)
+	# 	value = body.read()
+	# 	timestamp = self.get_timestamp(env)
+	# 	logging.debug("key: %s, timestamp: %s", repr(key), timestamp)
+	# 	self.store.set(key, value, timestamp)
+	# 	start_response('200 OK', [
+	# 		('Content-Type', 'application/octet-stream'),
+	# 		('X-TimeStamp', str(timestamp)),
+	# 	])
+	# 	return ['']
 
-	def internal_POST(self, start_response, path, body, env):
-		"""docstring for internal_POST"""
-		key = self.unquote(path)
-		value = body.read()
-		timestamp = self.get_timestamp(env)
-		logging.debug("key: %s, timestamp: %s", repr(key), timestamp)
-		self.store.set(key, value, timestamp)
-		start_response('200 OK', [
-			('Content-Type', 'application/octet-stream'),
-			('X-TimeStamp', str(timestamp)),
-		])
-		return ['']
+	# def stat_GET(self, start_response, path, body, env):
+	# 	"""docstring for stat_GET"""
+	# 	logging.debug("path: %s", path)
+	# 	key = self.unquote(path)
+	# 	value, timestamp = self.store.get(key)
+	# 	logging.debug("path: %s, timestamp: %s", repr(path), timestamp)
+	# 	if value:
+	# 		start_response('200 OK', [
+	# 			('Content-Type', 'application/octet-stream'),
+	# 			('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
+	# 			('X-TimeStamp', str(timestamp)),
+	# 		])
+	# 		return [str(timestamp)]
+	# 	else:
+	# 		start_response('404 Not Found', [])
+	# 		return ['']
 
-	def stat_GET(self, start_response, path, body, env):
-		"""docstring for stat_GET"""
-		logging.debug("path: %s", path)
-		key = self.unquote(path)
-		value, timestamp = self.store.get(key)
-		logging.debug("path: %s, timestamp: %s", repr(path), timestamp)
-		if value:
-			start_response('200 OK', [
-				('Content-Type', 'application/octet-stream'),
-				('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
-				('X-TimeStamp', str(timestamp)),
-			])
-			return [str(timestamp)]
-		else:
-			start_response('404 Not Found', [])
-			return ['']
+	# def send(self, key, value, timestamp, node):
+	# 	logging.debug('key: %s, timestamp: %s, node: %s', repr(key), str(timestamp), node)
 
-	def send(self, key, value, timestamp, node):
-		logging.debug('key: %s, timestamp: %s, node: %s', repr(key), str(timestamp), node)
-		path = self.quote(key)
-		try:
-			url = node.internal_url() + path
-			http.post(url, value, {'X-TimeStamp': str(timestamp)})
-		except IOError, e:
-			logging.error('Failed to post data to sibling (%s): %s', node, e)
+	# def send(self, key, value, timestamp, node):
+	# 	logging.debug('key: %s, timestamp: %s, node: %s', repr(key), str(timestamp), node)
+	# 	path = self.quote(key)
+	# 	try:
+	# 		url = node.internal_url() + path
+	# 		http.post(url, value, {'X-TimeStamp': str(timestamp)})
+	# 	except IOError, e:
+	# 		logging.error('Failed to post data to sibling (%s): %s', node, e)
 
 	def fetch_value(self, key, node):
 		"""docstring for fetch_value"""
 		logging.debug('key: %s, node: %s', repr(key), node)
-		path = self.quote(key)
-		url = node.internal_url() + path
-		body, info = http.fetch(url)
-		return body
-
-	def fetch_timestamp(self, key, node):
-		"""docstring for fetch_timestamp"""
-		logging.debug('key: %s, node: %s', repr(key), node)
-		path = self.quote(key)
-		url = node.stat_url() + path
-		body, info = http.fetch(url)
-		timestamp = Timestamp.try_loads(info.get('X-TimeStamp', None))
-		logging.debug('key: %s, node: %s, timestamp: %s', repr(key), node, timestamp)
-		return (timestamp, node)
+		messengers = self.messengers_for_nodes([node])
+		message = self.request_message(Requests.GET_VALUE, key)
+		broadcast = Broadcast(messengers)
+		[value] = broadcast.send(message)
+		return value
 
 	def fetch_timestamps(self, key):
 		"""docstring for fetch_timestamps"""
 		logging.debug('key: %s', repr(key))
-		neighbour_buckets = self.configuration.find_neighbour_buckets(key, self.node)
-		neighbour_bucket_nodes = [node for bucket in neighbour_buckets for node in bucket]
-		target_nodes = self.siblings + neighbour_bucket_nodes
-		logging.debug('target nodes: %s', target_nodes)
-		timestamps = runner.run([runner.task(self.fetch_timestamp, key, node) for node in target_nodes])
-		timestamps.sort()
+		neighbour_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
+		logging.debug('target nodes: %s', neighbour_nodes)
+		messengers = self.messengers_for_nodes(neighbour_nodes)
+		logging.debug('messengers: %s', messengers)
+		message = self.request_message(Requests.GET_TIMESTAMP, key)
+		broadcast = Broadcast(messengers)
+		timestamps = broadcast.send(message)
 		return timestamps
 
 	def get_timestamp(self, env):
@@ -204,14 +309,24 @@ class NodeServer(httpserver.HttpServer):
 		except ValueError:
 			raise httpserver.BadRequest()
 
+	def messengers_for_nodes(self, nodes):
+		"""docstring for messengers_for_nodes"""
+		messengers = [self.node_messengers[node.id] for node in nodes]
+		return messengers
+
 	def propagate(self, key, value, timestamp, target_nodes = []):
 		"""docstring for propagate"""
 		logging.debug('key: %s, value:%s', repr(key), repr(value))
 		if not target_nodes:
-			neighbour_buckets = self.configuration.find_neighbour_buckets(key, self.node)
-			neighbour_bucket_nodes = [node for bucket in neighbour_buckets for node in bucket]
-			target_nodes = self.siblings + neighbour_bucket_nodes
-		runner.run([runner.task(self.send, key, value, timestamp, node) for node in target_nodes])
+			target_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
+		logging.debug('target_nodes: %s', target_nodes)
+		message = self.request_message(Requests.SET_VALUE, key, value)
+		messengers = self.messengers_for_nodes(target_nodes)
+		logging.debug('message: %s', message[0:32])
+		logging.debug('messengers: %s', messengers)
+		broadcast = Broadcast(messengers)
+		results = broadcast.send(message)
+		logging.debug('results: %s', results)
 
 	def read_repair(self, key, value, timestamp):
 		"""docstring for read_repair"""
@@ -236,15 +351,19 @@ class NodeServer(httpserver.HttpServer):
 		return value, timestamp
 
 def _main(args):
-	debug.configure_logging('nodeserver', args.debug and logging.DEBUG or logging.INFO)
+	level = logging.DEBUG if args.debug else logging.INFO
+	debug.configure_logging('nodeserver', level)
+
+	if args.debug:
+		logging.debug('debugging enabled')
 
 	config = None
 	if args.config:
-		config = configuration.load(args.config)
+		config = configuration.try_load_file(args.config)
 		if not config:
 			print >> sys.stderr, 'Failed to load configuration file.'
 			exit(-1)
-		if args.id not in configuration.active_deployment.nodes:
+		if args.id not in config.active_deployment.nodes:
 			print >> sys.stderr, 'Configuration for Node (id = %s) not found in configuration' % args.id
 			exit(-1)
 
@@ -264,6 +383,8 @@ def _main(args):
 	try:
 		server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinators=coordinators)
 		server.serve()
+		while True:
+			coio.sleep(1)
 	except KeyboardInterrupt:
 		pass
 

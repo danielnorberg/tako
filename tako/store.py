@@ -6,6 +6,8 @@ import struct
 
 from utils.timestamp import Timestamp
 
+BUFFER_THRESHOLD = 4096
+
 class Store(object):
 	"""docstring for Store"""
 	def __init__(self, filepath):
@@ -26,14 +28,35 @@ class Store(object):
 		"""docstring for set"""
 		timestamp = timestamp or Timestamp.now()
 		logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
-		data = struct.pack('Q', timestamp.microseconds) + value
-		self.db.put(key, data)
+		timestamp_data = struct.pack('Q', timestamp.microseconds)
+		self.db.put(key, timestamp_data)
+		self.db.putcat(key, value)
 		return timestamp
 
-	def _read(self, data):
-		value = data[8:]
-		timestamp = Timestamp(struct.unpack('Q', data[0:8])[0])
+	def set_timestamped(self, key, timestamped_value):
+		"""docstring for set_timestamped"""
+		logging.debug('key: %s, value: %s', repr(key), repr(timestamped_value[0:16]))
+		self.db.put(key, timestamped_value)
+
+	def parse_timestamped_data(self, data):
+		if len(data) > BUFFER_THRESHOLD:
+			value = buffer(data, 8)
+		else:
+			value = data[8:]
+		timestamp = Timestamp(struct.unpack_from('!Q', data)[0])
 		return value, timestamp
+
+	def get_timestamped(self, key):
+		"""docstring for get_timestamped"""
+		logging.debug('%s', repr(key))
+		value = None
+		timestamp = None
+		try:
+			return self.db.get(key)
+		except:
+			pass
+		logging.debug('key: %s, value: None, timestamp: None', repr(key))
+		return None
 
 	def get(self, key):
 		"""docstring for get"""
@@ -42,7 +65,7 @@ class Store(object):
 		timestamp = None
 		try:
 			data = self.db.get(key)
-			value, timestamp = self._read(data)
+			value, timestamp = self.parse_timestamped_data(data)
 			logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
 			return (value, timestamp)
 		except:
@@ -75,7 +98,7 @@ class Store(object):
 		"""docstring for get_key_value_range"""
 		cur = self.db.curnew()
 		for key in self._range(cur, start_key, end_key):
-			yield (key, self._read(cur.val()))
+			yield (key, self.parse_timestamped_data(cur.val()))
 
 	def get_key_range(self, start_key, end_key):
 		"""docstring for get_key_range"""
@@ -128,6 +151,31 @@ class StoreTest(testcase.TestCase):
 		store.close()
 		store.open()
 		self.assertEqual(store.get('bar'), ('bar', timestamp))
+
+	def testBuffer(self):
+		key = 'foo'
+		data = 'bar'
+		store = Store(filepath = self.tempfile())
+		store.open()
+		timestamp = store.set(key, buffer(data))
+		assert store.get(key) == (data, timestamp)
+
+	def testPerf(self):
+		import time
+		store = Store(filepath = self.tempfile())
+		data = 'bar' * 1024 * 1024 * 16
+		M = len(data)
+		store.open()
+		start_time = time.time()
+		N = 100
+		for i in xrange(N):
+			store.set(str(i), data)
+		end_time = time.time()
+		# store.close()
+		elapsed_time = end_time - start_time
+		print N / elapsed_time
+		print '%.2f MB/s' % ((M * N / 1024.0 / 1024.0) / elapsed_time)
+
 
 if __name__ == '__main__':
 	unittest.main()

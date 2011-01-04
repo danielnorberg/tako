@@ -64,6 +64,7 @@ def try_dump_file(filepath, configuration):
 def validate_specification(specification):
 	"""docstring for validate_specification"""
 	# TODO: Complete validation
+	# TODO: Validate that node id's are not recycled
 	try:
 		assert 'active_deployment' in specification
 		assert 'deployments' in specification
@@ -76,10 +77,11 @@ def validate_specification(specification):
 			for bucket_id, bucket in deployment['buckets'].iteritems():
 				assert len(bucket) > 0
 				for node_id, node in bucket.iteritems():
-					assert len(node) == 2
-					address, port = node
+					assert len(node) == 3
+					address, http_port, raw_port = node
 					assert type(address) == str
-					assert type(port) == int
+					assert type(http_port) == int
+					assert type(raw_port) == int
 		if 'master_coordinator' in specification:
 			assert specification['master_coordinator'] in specification['coordinators']
 		for coordinator_id, coordinator in specification.get('coordinators', {}).iteritems():
@@ -88,9 +90,10 @@ def validate_specification(specification):
 			assert type(address) == str
 			assert type(port) == int
 	except AssertionError:
-		raise ValidationError()
+		raise
+		# raise ValidationError()
 
-class ValidationError(object):
+class ValidationError(Exception):
 	"""docstring for ValidationError"""
 	def __init__(self, description=None):
 		super(ValidationError, self).__init__()
@@ -128,7 +131,7 @@ class Configuration(object):
 		self.active_deployment_name = specification['active_deployment']
 		self.active_deployment = self.deployments[self.active_deployment_name]
 		self.target_deployment_name = specification.get('target_deployment', None)
-		self.target_deployment = self.target_deployment_name and self.deployments[self.target_deployment_name]
+		self.target_deployment = self.deployments[self.target_deployment_name] if self.target_deployment_name else None
 		self.coordinators = dict((coordinator_id, Coordinator(coordinator_id, address, port)) for coordinator_id, (address, port) in specification.get('coordinators', {}).iteritems())
 		self.master_coordinator_id = specification.get('master_coordinator', None)
 		self.master_coordinator = self.coordinators.get(self.master_coordinator_id, None)
@@ -148,15 +151,25 @@ class Configuration(object):
 			spec['target_deployment'] = self.target_deployment_name
 		return spec
 
-	def find_neighbour_buckets(self, key, node):
+	def find_buckets_for_key(self, key, node):
 		"""docstring for find_neighbour_buckets"""
-		node_bucket = self.active_deployment.buckets[node.bucket_id]
 		key_buckets = self.active_deployment.consistent_hash.find_buckets(key)
-		key_buckets -= set([node_bucket])
 		if self.target_deployment:
 			key_buckets.update(self.target_deployment.consistent_hash.find_buckets(key))
 		return key_buckets
 
+	def find_neighbour_nodes_for_key(self, key, local_node):
+		"""docstring for find_neighbour_nodes_for_key"""
+		buckets = self.find_buckets_for_key(key, local_node)
+		neighbour_nodes = set([node for bucket in buckets for node in bucket])
+		neighbour_nodes -= set([node])
+		return neighbour_nodes
+
+	def find_neighbour_nodes_for_node(self, node):
+		neighbour_nodes = set(self.active_deployment.consistent_hash.find_neighbour_buckets(node.id))
+		if self.target_deployment and node.id in self.target_deployment.nodes:
+			neighbour_nodes.update(self.target_deployment.consistent_hash.find_neighbour_buckets(node.id))
+		return neighbour_nodes
 
 class TestConfiguration(testcase.TestCase):
 	def testParsing(self):

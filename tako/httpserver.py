@@ -18,8 +18,10 @@ class BadRequest(object):
 
 class HttpServer(object):
 	"""docstring for HttpServer"""
-	def __init__(self):
+	def __init__(self, listener, handlers):
 		super(HttpServer, self).__init__()
+		self.address, self.port = listener
+		self.handlers = handlers
 
 	def handle_request(self, env, start_response):
 		method = env['REQUEST_METHOD']
@@ -45,7 +47,7 @@ class HttpServer(object):
 		def _handle(env, start_response):
 			return self.handle_request(env, start_response)
 		logging.info('Listening on port %d', self.port)
-		wsgi.RunHttpServer(_handle, ('', self.port))
+		wsgi.RunHttpServer(_handle, (self.address, self.port))
 
 from utils.testcase import TestCase
 class TestHttpServer(TestCase):

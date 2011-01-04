@@ -12,13 +12,16 @@ def launch(profiling=False, debug=False):
 	"""docstring for launch"""
 	os.chdir(paths.home)
 	profiling_cmd = lambda nodeid: profiling and '-p nodeserver-%s.prof' % nodeid or ''
-	debug_cmd = debug and '-d' or ''
-	cfg = Configuration(yaml.load(open(paths.path('test/local_cluster.yaml'))))
-	coordinator_cmds = ['python bin/tako-coordinator -id %s -cfg test/local_cluster.yaml &> var/log/coordinator-%s.log' % (coordinator.id, coordinator.id) for coordinator in cfg.coordinators.itervalues()]
-	node_cmds = ['python bin/tako-node -id %s -c localhost 4701 %s %s &> var/log/node-%s.log' % (node.id, profiling_cmd(node.id), debug_cmd, node.id) for node in cfg.active_deployment.nodes.itervalues()]
-	for cmd in coordinator_cmds:
-		subprocess.Popen(cmd, shell=True)
-	time.sleep(1)
+	debug_cmd = '-d' if debug else ''
+	# cfg = Configuration(yaml.load(open(paths.path('test/local_cluster.yaml'))))
+	configuration_filepath = paths.path('etc/standalone.yaml')
+	cfg = Configuration(yaml.load(open(configuration_filepath)))
+	# coordinator_cmds = ['python bin/tako-coordinator -id %s -cfg test/local_cluster.yaml &> var/log/coordinator-%s.log' % (coordinator.id, coordinator.id) for coordinator in cfg.coordinators.itervalues()]
+	# node_cmds = ['python bin/tako-node -id %s -c localhost 4701 %s %s &> var/log/node-%s.log' % (node.id, profiling_cmd(node.id), debug_cmd, node.id) for node in cfg.active_deployment.nodes.itervalues()]
+	# for cmd in coordinator_cmds:
+	# 	subprocess.Popen(cmd, shell=True)
+	# time.sleep(1)
+	node_cmds = ['python bin/tako-node -id %s -cfg %s %s %s &> var/log/node-%s.log' % (node.id, configuration_filepath, profiling_cmd(node.id), debug_cmd, node.id) for node in cfg.active_deployment.nodes.itervalues()]
 	for cmd in node_cmds:
 		subprocess.Popen(cmd, shell=True)
 
