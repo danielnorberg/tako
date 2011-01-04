@@ -42,26 +42,15 @@ class Store(object):
 		timestamp = timestamp or Timestamp.now()
 		#logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
 		timestamp_data = struct.pack('Q', timestamp.microseconds)
-		# self.begin()
-		try:
-			self.db.put(key, timestamp_data)
-			self.db.putcat(key, value)
-		finally:
-			pass
-			# self.commit()
+		self.db.put(key, timestamp_data)
+		self.db.putcat(key, value)
 		return timestamp
 
 	def set_timestamped(self, key, timestamped_value):
 		"""docstring for set_timestamped"""
 		# value, timestamp = self.unpack_timestamped_data(timestamped_value)
 		#logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
-		# #logging.debug('key: %s, value: %s', repr(key), repr(timestamped_value[0:16]))
-		# self.begin()
-		try:
-			self.db.put(key, timestamped_value)
-		finally:
-			pass
-			# self.commit()
+		self.db.put(key, timestamped_value)
 
 	def unpack_timestamped_data(self, data):
 		if len(data) > BUFFER_THRESHOLD:
