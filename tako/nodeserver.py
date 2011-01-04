@@ -8,9 +8,6 @@ import struct
 
 from syncless import coio
 
-from syncless import patch
-patch.patch_socket()
-
 from socketless.messenger import Messenger
 from socketless.channelserver import ChannelServer
 from socketless.channel import DisconnectedException
@@ -278,7 +275,7 @@ class NodeServer(object):
 		message = self.request_message(Requests.SET_VALUE, key, timestamped_value)
 		messengers = self.messengers_for_nodes(target_nodes)
 		broadcast = Broadcast(messengers)
-		results = broadcast.send(message)
+		broadcast.send(message)
 
 	def read_repair(self, key, timestamped_value):
 		"""docstring for read_repair"""
@@ -287,6 +284,7 @@ class NodeServer(object):
 		remote_timestamps = self.fetch_timestamps(key)
 		logging.debug('remote: %s', remote_timestamps)
 		newer = [(remote_timestamp, node) for remote_timestamp, node in remote_timestamps if remote_timestamp > timestamp]
+
 		logging.debug('newer: %s', newer)
 		if newer:
 			latest_timestamp, latest_node = newer[-1]
@@ -315,22 +313,22 @@ def _main(args):
 	if args.config:
 		config = configuration.try_load_file(args.config)
 		if not config:
-			print >> sys.stderr, 'Failed to load configuration file.'
+			logging.critical('Failed to load configuration file.')
 			exit(-1)
 		if args.id not in config.active_deployment.nodes:
-			print >> sys.stderr, 'Configuration for Node (id = %s) not found in configuration' % args.id
+			logging.critical('Configuration for Node (id = %s) not found in configuration', args.id)
 			exit(-1)
 
-	print 'Tako Node'
-	print '-' * 80
-	print 'Node id: %s' % args.id
+	logging.info('Tako Node')
+	logging.info('-' * 80)
+	logging.info('Node id: %s', args.id)
 
 	coordinators = []
 	if args.coordinator:
 		for address, port_string in args.coordinator:
 			port = convert.try_int(port_string)
 			if not port:
-				print >> sys.stderr, 'Port number is not numerical.'
+				logging.critical("Invalid port '%s'", port_string)
 				exit(-1)
 			coordinators.append(Coordinator(None, address, port))
 
