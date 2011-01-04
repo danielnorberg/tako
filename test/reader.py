@@ -1,5 +1,5 @@
 import argparse
-import urllib
+import urllib3
 import time
 
 def main():
@@ -12,19 +12,26 @@ def main():
 	parser.add_argument('-d', '--delay', type=float, default=1)
 	args = parser.parse_args()
 
-	base_url = 'http://%s:%d/store/' % (args.address, args.port)
+	host_url = 'http://%s:%d/' % (args.address, args.port)
+	http_pool = urllib3.connection_from_url(host_url)
 
-	print 'reading %s' % base_url
+	last_time = time.time()
+	print 'reading %s' % host_url
 	i = 0
 	while True:
 		key = str(i)
-		url = base_url + key
-		print 'Key: ', key
+		path = '/store/' + key
+		verbose = time.time() - last_time > 1
+		if verbose:
+			last_time = time.time()
+			print i
+			print 'Reading from %s' % path
 		try:
-			stream = urllib.urlopen(url)
-			print 'Value: ', repr(stream.read())
-			print stream.info()
-			stream.close()
+			r = http_pool.urlopen('GET', path)
+			if verbose:
+				print 'Value: ', repr(r.data)
+				print r.status
+				print r.headers
 			i += 1
 		except IOError, e:
 			print e

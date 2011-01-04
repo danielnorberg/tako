@@ -162,13 +162,16 @@ class Configuration(object):
 		"""docstring for find_neighbour_nodes_for_key"""
 		buckets = self.find_buckets_for_key(key, local_node)
 		neighbour_nodes = set([node for bucket in buckets for node in bucket])
-		neighbour_nodes -= set([node])
+		neighbour_nodes -= set([local_node])
 		return neighbour_nodes
 
 	def find_neighbour_nodes_for_node(self, node):
-		neighbour_nodes = set(self.active_deployment.consistent_hash.find_neighbour_buckets(node.id))
+		node_bucket = self.active_deployment.buckets[node.bucket_id]
+		neighbour_buckets = list(self.active_deployment.consistent_hash.find_neighbour_buckets(node_bucket))
 		if self.target_deployment and node.id in self.target_deployment.nodes:
-			neighbour_nodes.update(self.target_deployment.consistent_hash.find_neighbour_buckets(node.id))
+			neighbour_buckets.extend(self.target_deployment.consistent_hash.find_neighbour_buckets(node_bucket))
+		neighbour_bucket_nodes = set(neighbour_node for neighbour_bucket in neighbour_buckets for neighbour_node in neighbour_bucket)
+		neighbour_nodes = neighbour_bucket_nodes - set([node])
 		return neighbour_nodes
 
 class TestConfiguration(testcase.TestCase):

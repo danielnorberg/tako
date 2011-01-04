@@ -1,4 +1,5 @@
 import time
+import logging
 
 class Timestamp(object):
 	"""docstring for Timestamp"""
@@ -11,6 +12,7 @@ class Timestamp(object):
 	@classmethod
 	def try_loads(self, s):
 		"""docstring for try_loads"""
+		# logging.debug('s: %s', s)
 		try:
 			return Timestamp.loads(s)
 		except ValueError:

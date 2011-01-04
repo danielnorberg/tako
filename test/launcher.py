@@ -8,14 +8,13 @@ import paths
 
 from tako.configuration import Configuration
 
-def launch(profiling=False, debug=False):
+def launch(configuration_filepath, profiling=False, debug=False):
 	"""docstring for launch"""
 	os.chdir(paths.home)
 	profiling_cmd = lambda nodeid: profiling and '-p nodeserver-%s.prof' % nodeid or ''
 	debug_cmd = '-d' if debug else ''
-	# cfg = Configuration(yaml.load(open(paths.path('test/local_cluster.yaml'))))
-	configuration_filepath = paths.path('etc/standalone.yaml')
-	cfg = Configuration(yaml.load(open(configuration_filepath)))
+	absolute_configuration_filepath = paths.path(configuration_filepath)
+	cfg = Configuration(yaml.load(open(absolute_configuration_filepath)))
 	# coordinator_cmds = ['python bin/tako-coordinator -id %s -cfg test/local_cluster.yaml &> var/log/coordinator-%s.log' % (coordinator.id, coordinator.id) for coordinator in cfg.coordinators.itervalues()]
 	# node_cmds = ['python bin/tako-node -id %s -c localhost 4701 %s %s &> var/log/node-%s.log' % (node.id, profiling_cmd(node.id), debug_cmd, node.id) for node in cfg.active_deployment.nodes.itervalues()]
 	# for cmd in coordinator_cmds:
@@ -35,7 +34,8 @@ def launch(profiling=False, debug=False):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description="Launcher")
+	parser.add_argument('-c', '--configuration', help='Configuration file.', default='test/local_cluster.yaml')
 	parser.add_argument('-p', '--profiling', help='Enable profiling', action='store_true')
 	parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
 	args = parser.parse_args()
-	launch(args.profiling, args.debug)
+	launch(args.configuration, args.profiling, args.debug)

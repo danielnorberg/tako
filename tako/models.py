@@ -34,6 +34,9 @@ class Node(object):
 	def __eq__(self, node):
 		return node.id == self.id
 
+	def __hash__(self):
+		return hash(self.id)
+
 class Bucket(object):
 	"""docstring for Bucket"""
 	def __init__(self, bucket_id, nodes):
@@ -52,6 +55,9 @@ class Bucket(object):
 
 	def __hash__(self):
 		return hash(self.id)
+
+	def __eq__(self, bucket):
+		return self.id == bucket.id
 
 class Deployment(object):
 	"""docstring for Deployment"""

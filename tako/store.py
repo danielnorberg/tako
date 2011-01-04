@@ -4,6 +4,8 @@ import logging
 from utils import testcase
 import struct
 
+from syncless import coio
+
 from utils.timestamp import Timestamp
 
 BUFFER_THRESHOLD = 4096
@@ -15,62 +17,94 @@ class Store(object):
 		logging.debug('filepath: %s', filepath)
 		self.filepath = filepath
 		self.db = tc.BDB()
+		self.flusher = None
 
 	def open(self):
 		"""docstring for open"""
 		self.db.open(self.filepath, tc.BDBOWRITER | tc.BDBOCREAT)
+		self.begin()
+		self.flusher = coio.stackless.tasklet(self._flush)()
 
 	def close(self):
 		"""docstring for close"""
+		self.flusher.kill()
+		self.commit()
 		self.db.close()
+
+	def _flush(self):
+		while True:
+			self.commit()
+			self.begin()
+			coio.sleep(10)
 
 	def set(self, key, value, timestamp=None):
 		"""docstring for set"""
 		timestamp = timestamp or Timestamp.now()
-		logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
+		#logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
 		timestamp_data = struct.pack('Q', timestamp.microseconds)
-		self.db.put(key, timestamp_data)
-		self.db.putcat(key, value)
+		# self.begin()
+		try:
+			self.db.put(key, timestamp_data)
+			self.db.putcat(key, value)
+		finally:
+			pass
+			# self.commit()
 		return timestamp
 
 	def set_timestamped(self, key, timestamped_value):
 		"""docstring for set_timestamped"""
-		logging.debug('key: %s, value: %s', repr(key), repr(timestamped_value[0:16]))
-		self.db.put(key, timestamped_value)
+		value, timestamp = self.unpack_timestamped_data(timestamped_value)
+		#logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
+		# #logging.debug('key: %s, value: %s', repr(key), repr(timestamped_value[0:16]))
+		# self.begin()
+		try:
+			self.db.put(key, timestamped_value)
+		finally:
+			pass
+			# self.commit()
 
-	def parse_timestamped_data(self, data):
+	def unpack_timestamped_data(self, data):
 		if len(data) > BUFFER_THRESHOLD:
 			value = buffer(data, 8)
 		else:
 			value = data[8:]
-		timestamp = Timestamp(struct.unpack_from('!Q', data)[0])
+		timestamp = self.read_timestamp(data)
 		return value, timestamp
+
+	def pack_timestamped_data(self, data, timestamp):
+		#logging.debug('data: %s, timestamp: %s', data, timestamp)
+		return ''.join((struct.pack('!Q', timestamp.microseconds), data))
+
+	def read_timestamp(self, data):
+		#logging.debug('data: %s', data)
+		return Timestamp(struct.unpack_from('!Q', data)[0])
 
 	def get_timestamped(self, key):
 		"""docstring for get_timestamped"""
-		logging.debug('%s', repr(key))
-		value = None
-		timestamp = None
+		#logging.debug('%s', repr(key))
 		try:
 			return self.db.get(key)
 		except:
 			pass
-		logging.debug('key: %s, value: None, timestamp: None', repr(key))
+		#logging.debug('key: %s, value: None, timestamp: None', repr(key))
 		return None
 
 	def get(self, key):
 		"""docstring for get"""
-		logging.debug('%s', repr(key))
+		# #logging.debug('%s', repr(key))
 		value = None
 		timestamp = None
+		# self.begin()
 		try:
 			data = self.db.get(key)
-			value, timestamp = self.parse_timestamped_data(data)
-			logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
+			value, timestamp = self.unpack_timestamped_data(data)
+			# #logging.debug('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
 			return (value, timestamp)
 		except:
 			pass
-		logging.debug('key: %s, value: None, timestamp: None', repr(key))
+		# finally:
+		# 	self.commit()
+		# #logging.debug('key: %s, value: None, timestamp: None', repr(key))
 		return (None, None)
 
 	def _jump(self, cur, start):
@@ -98,7 +132,7 @@ class Store(object):
 		"""docstring for get_key_value_range"""
 		cur = self.db.curnew()
 		for key in self._range(cur, start_key, end_key):
-			yield (key, self.parse_timestamped_data(cur.val()))
+			yield (key, self.unpack_timestamped_data(cur.val()))
 
 	def get_key_range(self, start_key, end_key):
 		"""docstring for get_key_range"""
