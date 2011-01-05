@@ -7,6 +7,7 @@ import email.utils
 import struct
 
 from syncless import coio
+from syncless.util import Queue
 
 from socketless.messenger import Messenger
 from socketless.channelserver import ChannelServer
@@ -79,52 +80,65 @@ class InternalServer(object):
 			Requests.SET_VALUE: self.public_set_value,
 		}
 
+	def handshake(self, channel):
+		debug.log('Awaiting challenge.')
+		challenge = channel.recv()
+		debug.log('Got challenge: "%s"', challenge)
+		if challenge == INTERNAL_HANDSHAKE[0]:
+			debug.log('Correct challenge, sending response: "%s"', INTERNAL_HANDSHAKE[1])
+			channel.send(INTERNAL_HANDSHAKE[1])
+			channel.flush()
+			return self.internal_handlers
+		if challenge == PUBLIC_HANDSHAKE[0]:
+			debug.log('Correct challenge, sending response: "%s"', PUBLIC_HANDSHAKE[1])
+			channel.send(PUBLIC_HANDSHAKE[1])
+			channel.flush()
+			return self.public_handlers
+		logging.warning('Failed handshake!')
+		channel.send(Responses.ERROR)
+		return None
+
+		debug.log('Succesfully completed handshake.')
+
 	def handle_connection(self, channel, addr):
+		def flush_loop(channel, flush_queue):
+			try:
+				while True:
+					flush_queue.popleft()
+					channel.flush()
+			except DisconnectedException:
+				pass
 		try:
-			handlers = None
-			debug.log('Awaiting challenge.')
-			challenge = channel.recv()
-			debug.log('Got challenge: "%s"', challenge)
-			if challenge == INTERNAL_HANDSHAKE[0]:
-				debug.log('Correct challenge, sending response: "%s"', INTERNAL_HANDSHAKE[1])
-				channel.send(INTERNAL_HANDSHAKE[1])
-				channel.flush()
-				handlers = self.internal_handlers
-			elif challenge == PUBLIC_HANDSHAKE[0]:
-				debug.log('Correct challenge, sending response: "%s"', PUBLIC_HANDSHAKE[1])
-				channel.send(PUBLIC_HANDSHAKE[1])
-				channel.flush()
-				handlers = self.public_handlers
-			if not handlers:
-				logging.warning('Failed handshake!')
-				channel.send(Responses.ERROR)
-				return
-
-			debug.log('Succesfully completed handshake.')
-
-			while True:
-				message = channel.recv()
-				if not message:
-					debug.log('Channel closing.')
-					break
-				reader = MessageReader(message)
-				request = reader.read(1)
-				handler = handlers.get(request, None)
-				if not handler:
-					channel.send(Responses.ERROR)
-					return
-				handler(reader, channel)
-				channel.flush()
-
+			handlers = self.handshake(channel)
+			if handlers:
+				flush_queue = Queue()
+				flusher = coio.stackless.tasklet(flush_loop)(channel, flush_queue)
+				try:
+					while True:
+						message = channel.recv()
+						if not message:
+							debug.log('Channel closing.')
+							break
+						reader = MessageReader(message)
+						request = reader.read(1)
+						handler = handlers.get(request, None)
+						if not handler:
+							channel.send(Responses.ERROR)
+							return
+						handler(reader, channel)
+						if len(flush_queue) == 0:
+							flush_queue.append(True)
+				finally:
+					flusher.kill()
 		except DisconnectedException:
 			logging.info('client %s disconnected', addr)
-		except Exception, e:
+		except BaseException, e:
 			logging.exception(e)
 		finally:
 			try:
 				channel.close()
-			except Exception, e:
-				logging.exception(e)
+			except DisconnectedException, e:
+				pass
 
 	def internal_get_value(self, message, channel):
 		key_length = message.read_int()
@@ -271,9 +285,9 @@ class NodeServer(object):
 			return request
 		else:
 			if value:
-				fragments = (struct.pack('!cLL', request, len(key), len(value)), key, value)
+				fragments = (struct.pack('!cLL', request, len(key), len(value)), str(key), str(value))
 			else:
-				fragments = (struct.pack('!cL', request, len(key)), key)
+				fragments = (struct.pack('!cL', request, len(key)), str(key))
 			return ''.join(fragments)
 
 	def quote(self, key):
