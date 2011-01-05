@@ -51,15 +51,29 @@ class ConsistentHash(object):
 			point, bucket = self.points[i]
 			yield i, point, bucket
 
+	# def find_buckets(self, key):
+	# 		"""docstring for find_buckets"""
+	# 		buckets = set()
+	# 		i, (key_point, key_bucket) = self.find_bucket_point(key)
+	# 		buckets.add(key_bucket)
+	# 		for	j, point, bucket in self.bucket_points_from_index(i):
+	# 			if len(buckets) >= self.buckets_per_key or len(buckets) >= len(self.buckets):
+	# 				break
+	# 			buckets.add(bucket)
+	# 		return buckets
+
 	def find_buckets(self, key):
 		"""docstring for find_buckets"""
 		buckets = set()
-		i, (key_point, key_bucket) = self.find_bucket_point(key)
-		buckets.add(key_bucket)
-		for	j, point, bucket in self.bucket_points_from_index(i):
-			if len(buckets) >= self.buckets_per_key or len(buckets) >= len(self.buckets):
-				break
+		len_points = len(self.points)
+		index = bisect.bisect(self.point_index, self.generate_point(key)) % len_points
+		buckets.add(self.points[index][1])
+		n = 1
+		while n < self.buckets_per_key and n < len(self.buckets):
+			index += 1
+			point, bucket = self.points[index % len_points]
 			buckets.add(bucket)
+			n = len(buckets)
 		return buckets
 
 	def find_neighbour_buckets(self, bucket):
@@ -211,6 +225,15 @@ class TestConsistentHash(testcase.TestCase):
 	# 	points = list(ch.generate_points(keys=keys))
 	# 	ch.add_buckets(bs)
 	# 	ch.keys_in_bucket(keys=keys, bucket=bs[0], points=points)
+	#
+	# def testPerf(self):
+	# 	bs = ['b%02d' % i for i in xrange(100)]
+	# 	keys = [str(i) for i in xrange(1000)]
+	# 	ch = ConsistentHash()
+	# 	# points = list(ch.generate_points(keys=keys))
+	# 	ch.add_buckets(bs)
+	# 	for i in xrange(1000000):
+	# 		ch.find_buckets(keys[i%1000])
 
 	def testMigration(self):
 		"""docstring for testMigration"""
