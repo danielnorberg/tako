@@ -1,3 +1,5 @@
+# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
+
 from syncless import coio
 from syncless.util import Queue
 

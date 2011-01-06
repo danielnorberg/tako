@@ -1,3 +1,5 @@
+# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
+
 import urllib3
 from urlparse import urlparse
 import logging

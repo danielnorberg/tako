@@ -1,3 +1,5 @@
+# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
+
 import sys, os, stat, commands
 from distutils.core import setup
 from distutils.extension import Extension

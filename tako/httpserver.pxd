@@ -1,3 +1,5 @@
+# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
+
 cdef class HttpServer(object):
 	cdef str address
 	cdef unsigned int port

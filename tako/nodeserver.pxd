@@ -1,3 +1,5 @@
+# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
+
 from models cimport Deployment, Node
 from store cimport Store
 # from socketless.channelserver cimport ChannelServer
