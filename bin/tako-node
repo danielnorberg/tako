@@ -22,23 +22,21 @@ def _main(args):
 
     if args.debug:
         debug.configure_logging('nodeserver', level)
-        logging.debug('debugging enabled')
     else:
-        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+        logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s: %(message)s")
+
+    logging.info('--- Tako Node 0.1 ---')
+    logging.info('Node id: %s', args.id)
 
     config = None
     if args.config:
         config = configuration.try_load_file(args.config)
         if not config:
-            logging.critical('Failed to load configuration file.')
+            # logging.critical('Failed to load configuration file.')
             exit(-1)
         if args.id not in config.active_deployment.nodes:
             logging.critical('Configuration for Node (id = %s) not found in configuration', args.id)
             exit(-1)
-
-    logging.info('Tako Node')
-    logging.info('-' * 80)
-    logging.info('Node id: %s', args.id)
 
     coordinators = []
     if args.coordinator:
@@ -58,8 +56,7 @@ def _main(args):
     except KeyboardInterrupt:
         pass
 
-    print
-    print 'Exiting...'
+    logging.info('Exiting...')
 
 def main():
     parser = argparse.ArgumentParser(description="Tako Node")
@@ -70,11 +67,7 @@ def main():
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
 
-    try:
-        args = parser.parse_args()
-    except IOError, e:
-        print >> sys.stderr, str(e)
-        exit(-1)
+    args = parser.parse_args()
 
     if args.profiling_file:
         import cProfile
