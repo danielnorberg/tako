@@ -1,8 +1,6 @@
 import urllib
-import argparse
 import logging
-from utils import debug
-import os, sys
+import os
 import email.utils
 import struct
 
@@ -15,17 +13,19 @@ from socketless.channel import DisconnectedException
 from socketless.broadcast import Broadcast
 
 from utils.timestamp import Timestamp
-# from utils import runner
-from utils import convert
-# from utils import http
+# from utils import convert
+from utils import debug
 
 import httpserver
 import paths
 from store import Store
-import configuration
+# import configuration
 from configurationcache import ConfigurationCache
-from configuration import Coordinator
+# from configuration import Coordinator
 # from coordinatorclient import CoordinatorClient
+
+class NoConfigurationException(BaseException):
+	pass
 
 class MessageReader(object):
 	"""docstring for MessageReader"""
@@ -52,7 +52,7 @@ class MessageReader(object):
 
 class Requests:
 	GET_VALUE = 'G'
- 	SET_VALUE = 'S'
+	SET_VALUE = 'S'
 	GET_TIMESTAMP = 'T'
 
 class Responses:
@@ -70,11 +70,11 @@ class InternalServer(object):
 		self.listener = listener
 		self.channel_server = ChannelServer(self.listener, handle_connection=self.handle_connection)
 		self.node_server = node_server
-		self.internal_handlers = {
+		self.internal_handlers = dict({
 			Requests.GET_VALUE: self.internal_get_value,
 			Requests.SET_VALUE: self.internal_set_value,
 			Requests.GET_TIMESTAMP: self.internal_get_timestamp,
-		}
+		})
 		self.public_handlers = {
 			Requests.GET_VALUE: self.public_get_value,
 			Requests.SET_VALUE: self.public_set_value,
@@ -100,19 +100,21 @@ class InternalServer(object):
 
 		debug.log('Succesfully completed handshake.')
 
+	def _flush_loop(channel, flush_queue):
+		try:
+			while True:
+				flush_queue.popleft()
+				channel.flush()
+		except DisconnectedException:
+			pass
+
+
 	def handle_connection(self, channel, addr):
-		def flush_loop(channel, flush_queue):
-			try:
-				while True:
-					flush_queue.popleft()
-					channel.flush()
-			except DisconnectedException:
-				pass
 		try:
 			handlers = self.handshake(channel)
 			if handlers:
 				flush_queue = Queue()
-				flusher = coio.stackless.tasklet(flush_loop)(channel, flush_queue)
+				flusher = coio.stackless.tasklet(self._flush_loop)(channel, flush_queue)
 				try:
 					while True:
 						message = channel.recv()
@@ -220,12 +222,13 @@ class NodeServer(object):
 		self.store = Store(self.store_file)
 		self.store.open()
 		self.node_messengers = {}
+		self.coordinators = coordinators
 		self.http_handlers = (
 			('/store/', {'GET':self.store_GET, 'POST':self.store_POST}),
 			# ('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
 			# ('/stat/', {'GET':self.stat_GET}),
 		)
-		# self.coordinator_client = CoordinatorClient(coordinators=coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
+		# self.coordinator_client = CoordinatorClient(coordinators=self.coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
 
 		self.configuration = None
 		if explicit_configuration:
@@ -245,14 +248,14 @@ class NodeServer(object):
 	def initialize_messenger_pool(self):
 		neighbour_nodes = self.configuration.find_neighbour_nodes_for_node(self.node)
 		new_node_messengers = {}
-		for node, messenger in self.node_messengers.iteritems():
-			if node in neighbour_nodes:
-				new_node_messengers[node] = messenger
+		for node_id, messenger in self.node_messengers.iteritems():
+			if node_id in neighbour_nodes.iteritems():
+				new_node_messengers[node_id] = messenger
 			else:
 				messenger.close()
-		for node in neighbour_nodes:
-			if node not in new_node_messengers:
-				new_node_messengers[node] = Messenger((node.address, node.raw_port), handshake=INTERNAL_HANDSHAKE)
+		for node_id, node in neighbour_nodes.iteritems():
+			if node_id not in new_node_messengers:
+				new_node_messengers[node_id] = Messenger((node.address, node.raw_port), handshake=INTERNAL_HANDSHAKE)
 		self.node_messengers = new_node_messengers
 
 	def set_configuration(self, new_configuration):
@@ -262,7 +265,6 @@ class NodeServer(object):
 		self.deployment = self.configuration.active_deployment
 		self.read_repair_enabled = self.configuration.active_deployment.read_repair_enabled
 		self.node = self.deployment.nodes[self.id]
-		self.siblings = self.deployment.siblings(self.id)
 		self.http_port = self.node.http_port
 		self.configuration_cache.cache_configuration(self.configuration)
 		self.initialize_messenger_pool()
@@ -271,6 +273,9 @@ class NodeServer(object):
 		"""docstring for server"""
 		# self.coordinator_client.start()
 		logging.info('Checking Configuration.')
+		if not self.configuration and not self.coordinators:
+			logging.critical('Missing Configuration!')
+			raise NoConfigurationException()
 		while not self.configuration:
 			debug.log('Waiting for configuration.')
 			coio.sleep(1)
@@ -357,7 +362,7 @@ class NodeServer(object):
 		"""docstring for fetch_timestamps"""
 		debug.log('key: %s', key)
 		neighbour_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
-		messengers = self.messengers_for_nodes(neighbour_nodes)
+		messengers = self.messengers_for_nodes(neighbour_nodes.values())
 		message = self.request_message(Requests.GET_TIMESTAMP, key)
 		broadcast = Broadcast(messengers)
 		replies = broadcast.send(message)
@@ -373,7 +378,7 @@ class NodeServer(object):
 
 	def messengers_for_nodes(self, nodes):
 		"""docstring for messengers_for_nodes"""
-		messengers = [(node, self.node_messengers[node]) for node in nodes]
+		messengers = [(node, self.node_messengers[node.id]) for node in nodes]
 		return messengers
 
 	def propagate(self, key, timestamped_value, target_nodes = []):
@@ -385,7 +390,7 @@ class NodeServer(object):
 		if not target_nodes:
 			return
 		message = self.request_message(Requests.SET_VALUE, key, timestamped_value)
-		messengers = self.messengers_for_nodes(target_nodes)
+		messengers = self.messengers_for_nodes(target_nodes.values())
 		debug.log('messengers: %s', messengers)
 		broadcast = Broadcast(messengers)
 		replies = broadcast.send(message)
@@ -415,69 +420,3 @@ class NodeServer(object):
 			self.propagate(key, timestamped_value, older_nodes)
 
 		return timestamped_value
-
-def _main(args):
-	level = logging.DEBUG if args.debug else logging.INFO
-	debug.configure_logging('nodeserver', level)
-
-	if args.debug:
-		debug.log('debugging enabled')
-
-	config = None
-	if args.config:
-		config = configuration.try_load_file(args.config)
-		if not config:
-			logging.critical('Failed to load configuration file.')
-			exit(-1)
-		if args.id not in config.active_deployment.nodes:
-			logging.critical('Configuration for Node (id = %s) not found in configuration', args.id)
-			exit(-1)
-
-	logging.info('Tako Node')
-	logging.info('-' * 80)
-	logging.info('Node id: %s', args.id)
-
-	coordinators = []
-	if args.coordinator:
-		for address, port_string in args.coordinator:
-			port = convert.try_int(port_string)
-			if not port:
-				logging.critical("Invalid port '%s'", port_string)
-				exit(-1)
-			coordinators.append(Coordinator(None, address, port))
-
-	try:
-		server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinators=coordinators)
-		server.serve()
-		while True:
-			coio.sleep(1)
-	except KeyboardInterrupt:
-		pass
-
-	print
-	print 'Exiting...'
-
-def main():
-	parser = argparse.ArgumentParser(description="Tako Node")
-	parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
-	parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
-	parser.add_argument('-f','--file', help='Database file.')
-	parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
-	parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
-	parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
-
-	try:
-		args = parser.parse_args()
-	except IOError, e:
-		print >> sys.stderr, str(e)
-		exit(-1)
-
-	if args.profiling_file:
-		import cProfile
-		cProfile.runctx('_main(args)', globals(), locals(), args.profiling_file)
-	else:
-		_main(args)
-
-if __name__ == '__main__':
-	os.chdir(paths.home)
-	main()

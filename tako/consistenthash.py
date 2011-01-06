@@ -5,35 +5,18 @@ from utils import testcase
 
 class ConsistentHash(object):
 	"""Implements a consistent hash"""
-	def __init__(self, buckets = [], points_per_bucket = 120, buckets_per_key = 3):
+	def __init__(self, buckets=[], points_per_bucket=120, buckets_per_key=3, points=None):
 		super(ConsistentHash, self).__init__()
 		self.points_per_bucket = points_per_bucket
 		self.buckets = []
 		self.points = []
 		self.buckets_per_key = buckets_per_key
-		self.add_buckets(buckets)
-
-	def _add_bucket(self, bucket):
-		"""docstring for _add_bucket"""
-		self.buckets.append(bucket)
-		for i in xrange(0, self.points_per_bucket):
-			point = self.generate_point("%s-%s" % (hash(bucket), i))
-			self.points.append((point, bucket))
-
-	def _update_point_index(self):
-		"""docstring for _update_point_index"""
-		self.points.sort()
-		self.point_index = [point[0] for point in self.points]
-
-	def add_bucket(self, bucket):
-		self._add_bucket(bucket)
-		self._update_point_index()
-
-	def add_buckets(self, buckets):
-		"""docstring for add_buckets"""
-		for bucket in buckets:
-			self._add_bucket(bucket)
-		self._update_point_index()
+		self.buckets = list(buckets)
+		if points:
+			self.points = points
+		else:
+			self.points = sorted((self.generate_point("%s-%s" % (id(bucket), i)), bucket) for bucket in self.buckets for i in xrange(self.points_per_bucket))
+			self.point_index = [point[0] for point in self.points]
 
 	def find_bucket_point(self, key):
 		"""docstring for find_bucket_point"""
@@ -50,17 +33,6 @@ class ConsistentHash(object):
 			i = index % len_points
 			point, bucket = self.points[i]
 			yield i, point, bucket
-
-	# def find_buckets(self, key):
-	# 		"""docstring for find_buckets"""
-	# 		buckets = set()
-	# 		i, (key_point, key_bucket) = self.find_bucket_point(key)
-	# 		buckets.add(key_bucket)
-	# 		for	j, point, bucket in self.bucket_points_from_index(i):
-	# 			if len(buckets) >= self.buckets_per_key or len(buckets) >= len(self.buckets):
-	# 				break
-	# 			buckets.add(bucket)
-	# 		return buckets
 
 	def find_buckets(self, key):
 		"""docstring for find_buckets"""
@@ -188,17 +160,18 @@ class TestConsistentHash(testcase.TestCase):
 		return sha.hexdigest()
 
 	def testRanging(self):
-		ch = ConsistentHash(buckets_per_key=2)
-		ch.buckets.append(1)
-		ch.buckets.append(2)
-		ch.buckets.append(3)
-		ch.points.append((10, 1))
-		ch.points.append((20, 2))
-		ch.points.append((30, 3))
-		ch.points.append((40, 1))
-		ch.points.append((50, 2))
-		ch.points.append((60, 3))
-		ch._update_point_index()
+		ch = ConsistentHash(buckets=[1, 2, 4], points=[
+			(10, 1),
+			(20, 2),
+			(30, 3),
+			(40, 1),
+			(50, 2),
+			(60, 3),
+		], buckets_per_key=2)
+		# ch.buckets.append(1)
+		# ch.buckets.append(2)
+		# ch.buckets.append(3)
+		# ch._update_point_index()
 		x = 15
 		y = 65
 		self.assertEqual(ch.ranges_for_bucket(1), [(50, 10), (20, 40)])
@@ -211,9 +184,8 @@ class TestConsistentHash(testcase.TestCase):
 		self.assertEqual(ch.find_neighbour_buckets(3), set([1, 2]))
 
 	def testBucketing(self):
-		ch = ConsistentHash(buckets_per_key = 5)
 		buckets = [str(i) for i in xrange(0, 17)]
-		ch.add_buckets(buckets)
+		ch = ConsistentHash(buckets, buckets_per_key=5)
 		for	key in xrange(0, 4711):
 			buckets_for_key = ch.find_buckets(str(key))
 			self.assertEqual(len(buckets_for_key), 5)
@@ -243,11 +215,8 @@ class TestConsistentHash(testcase.TestCase):
 		bpk1 = 3
 		bpk2 = 4
 		buckets_per_key_delta = bpk2 - bpk1
-		ch1 = ConsistentHash(buckets_per_key=bpk1)
-		ch1.add_buckets(bs1)
-		ch2 = ConsistentHash(buckets_per_key=bpk2)
-		ch2 = ConsistentHash(buckets_per_key=bpk2)
-		ch2.add_buckets(bs2)
+		ch1 = ConsistentHash(bs1, buckets_per_key=bpk1)
+		ch2 = ConsistentHash(bs2, buckets_per_key=bpk2)
 
 		points = list(ch1.generate_points(keys))
 

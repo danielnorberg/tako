@@ -111,28 +111,28 @@ class Store(object):
 				key = cur.key()
 		return key
 
-	def _range(self, cur, start, end):
-		try:
-			endlen = len(end)
-			key = self._jump(cur, start)
-			while key[:endlen] <= end:
-				yield key
-				cur.next()
-				key = cur.key()
-		except KeyError:
-			pass
-
-	def get_key_value_range(self, start_key, end_key):
-		"""docstring for get_key_value_range"""
-		cur = self.db.curnew()
-		for key in self._range(cur, start_key, end_key):
-			yield (key, self.unpack_timestamped_data(cur.val()))
-
-	def get_key_range(self, start_key, end_key):
-		"""docstring for get_key_range"""
-		cur = self.db.curnew()
-		for key in self._range(cur, start_key, end_key):
-			yield key
+    # def _range(self, cur, start, end):
+    #   try:
+    #       endlen = len(end)
+    #       key = self._jump(cur, start)
+    #       while key[:endlen] <= end:
+    #           yield key
+    #           cur.next()
+    #           key = cur.key()
+    #   except KeyError:
+    #       pass
+    #
+    # def get_key_value_range(self, start_key, end_key):
+    #   """docstring for get_key_value_range"""
+    #   cur = self.db.curnew()
+    #   for key in self._range(cur, start_key, end_key):
+    #       yield (key, self.unpack_timestamped_data(cur.val()))
+    #
+    # def get_key_range(self, start_key, end_key):
+    #   """docstring for get_key_range"""
+    #   cur = self.db.curnew()
+    #   for key in self._range(cur, start_key, end_key):
+    #       yield key
 
 	def begin(self):
 		self.db.tranbegin()
@@ -152,14 +152,14 @@ class StoreTest(testcase.TestCase):
 		self.assertEqual(store.get("foo"), ("bar", timestamp))
 		store.close()
 
-	def testRange(self):
-		store = Store(filepath = self.tempfile())
-		store.open()
-		ks = ['a', 'aa', 'ab', 'ba', 'bb', 'c']
-		for k in ks:
-			store.set(k, k)
-		self.assertEqual(set(store.get_key_range('a', 'b')), set(['ba', 'bb']))
-		self.assertEqual(set(store.get_key_range('', 'c')), set(ks))
+    # def testRange(self):
+    #   store = Store(filepath = self.tempfile())
+    #   store.open()
+    #   ks = ['a', 'aa', 'ab', 'ba', 'bb', 'c']
+    #   for k in ks:
+    #       store.set(k, k)
+    #   self.assertEqual(set(store.get_key_range('a', 'b')), set(['ba', 'bb']))
+    #   self.assertEqual(set(store.get_key_range('', 'c')), set(ks))
 
 	def testTransaction(self):
 		"""docstring for testTransaction"""

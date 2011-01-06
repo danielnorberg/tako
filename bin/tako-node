@@ -1,9 +1,85 @@
 #! /usr/bin/env python
 
-import sys, os, string
+import argparse
+import sys
+import os
+import logging
+
+from syncless import coio
 
 home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
 sys.path.insert(0, home)
 
-from tako import nodeserver
-nodeserver.main()
+from tako.utils import debug
+from tako.utils import convert
+from tako import configuration
+from tako.configuration import Coordinator
+from tako.nodeserver import NodeServer, NoConfigurationException
+
+def _main(args):
+    level = logging.DEBUG if args.debug else logging.INFO
+
+    if args.debug:
+        debug.configure_logging('nodeserver', level)
+        logging.debug('debugging enabled')
+    else:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    config = None
+    if args.config:
+        config = configuration.try_load_file(args.config)
+        if not config:
+            logging.critical('Failed to load configuration file.')
+            exit(-1)
+        if args.id not in config.active_deployment.nodes:
+            logging.critical('Configuration for Node (id = %s) not found in configuration', args.id)
+            exit(-1)
+
+    logging.info('Tako Node')
+    logging.info('-' * 80)
+    logging.info('Node id: %s', args.id)
+
+    coordinators = []
+    if args.coordinator:
+        for address, port_string in args.coordinator:
+            port = convert.try_int(port_string)
+            if not port:
+                logging.critical("Invalid port '%s'", port_string)
+                exit(-1)
+            coordinators.append(Coordinator(None, address, port))
+    try:
+        server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinators=coordinators)
+        server.serve()
+        while True:
+            coio.sleep(1)
+    except NoConfigurationException:
+        pass
+    except KeyboardInterrupt:
+        pass
+
+    print
+    print 'Exiting...'
+
+def main():
+    parser = argparse.ArgumentParser(description="Tako Node")
+    parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
+    parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
+    parser.add_argument('-f','--file', help='Database file.')
+    parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
+    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
+    parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
+
+    try:
+        args = parser.parse_args()
+    except IOError, e:
+        print >> sys.stderr, str(e)
+        exit(-1)
+
+    if args.profiling_file:
+        import cProfile
+        cProfile.runctx('_main(args)', globals(), locals(), args.profiling_file)
+    else:
+        _main(args)
+
+if __name__ == '__main__':
+    main()

@@ -1,4 +1,6 @@
 import logging
+import socket
+
 from syncless import coio
 from syncless import wsgi
 
@@ -18,10 +20,12 @@ class BadRequest(object):
 
 class HttpServer(object):
 	"""docstring for HttpServer"""
-	def __init__(self, listener, handlers):
+	def __init__(self, listener, handlers, listen_queue_size=1024):
 		super(HttpServer, self).__init__()
 		self.address, self.port = listener
 		self.handlers = handlers
+		self.listen_queue_size = listen_queue_size
+		self.server_socket = None
 
 	def handle_request(self, env, start_response):
 		method = env['REQUEST_METHOD']
@@ -44,42 +48,9 @@ class HttpServer(object):
 
 	def serve(self):
 		"""docstring for serve"""
-		def _handle(env, start_response):
-			return self.handle_request(env, start_response)
-		logging.info('Listening on port %d', self.port)
-		wsgi.RunHttpServer(_handle, (self.address, self.port))
-
-from utils.testcase import TestCase
-class TestHttpServer(TestCase):
-
-	class DummyHttpServer(HttpServer):
-		"""docstring for DummyHttpServer"""
-		def __init__(self, port):
-			super(TestHttpServer.DummyHttpServer, self).__init__()
-			self.handlers = (
-				('/', {'GET':self.GET}),
-			)
-			self.port = port
-
-		def GET(self, start_response, path, body, env):
-			"""docstring for GET"""
-			start_response("200 OK", [('Content-Type', 'text/html')])
-			return ["TestHttpServer"]
-
-	def testServer(self):
-		import urllib
-		from syncless import patch
-		patch.patch_socket()
-		"""docstring for testServer"""
-		s = TestHttpServer.DummyHttpServer(4711)
-		t = coio.stackless.tasklet(s.serve)()
-		coio.stackless.schedule()
-		stream = urllib.urlopen('http://127.0.0.1:4711/')
-		body = stream.read()
-		stream.close()
-		assert body == "TestHttpServer"
-		t.kill()
-
-if __name__ == '__main__':
-	import unittest
-	unittest.main()
+		self.server_socket = coio.nbsocket(socket.AF_INET, socket.SOCK_STREAM)
+		self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.server_socket.bind((self.address, self.port))
+		self.server_socket.listen(self.listen_queue_size)
+		logging.info('listening on %r' % (self.server_socket.getsockname(),))
+		wsgi.WsgiListener(self.server_socket, self.handle_request)

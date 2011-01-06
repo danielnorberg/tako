@@ -29,7 +29,6 @@ def main():
 	host_url = 'http://%s:%d/' % (args.address, args.port)
 	http_pool = urllib3.connection_from_url(host_url)
 
-
 	last_time = time.time()
 	print 'feeding %s' % host_url
 	i = 0

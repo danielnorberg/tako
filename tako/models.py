@@ -31,11 +31,11 @@ class Node(object):
 		"""docstring for stat_url"""
 		return 'http://%s:%d/stat/' % (self.address, self.http_port)
 
-	def __eq__(self, node):
-		return node.id == self.id
-
-	def __hash__(self):
-		return hash(self.id)
+    # def __eq__(self, node):
+    #   return node.id == self.id
+    #
+    # def __hash__(self):
+    #   return hash(self.id)
 
 class Bucket(object):
 	"""docstring for Bucket"""
@@ -53,11 +53,14 @@ class Bucket(object):
 	def __iter__(self):
 		return self.nodes.itervalues()
 
-	def __hash__(self):
-		return hash(self.id)
+	def specification(self):
+		return dict((node.id, [node.address, node.http_port, node.raw_port]) for node in self.nodes.itervalues())
 
-	def __eq__(self, bucket):
-		return self.id == bucket.id
+    # def __hash__(self):
+    #   return hash(self.id)
+    #
+    # def __eq__(self, bucket):
+    #   return self.id == bucket.id
 
 class Deployment(object):
 	"""docstring for Deployment"""
@@ -65,8 +68,12 @@ class Deployment(object):
 		super(Deployment, self).__init__()
 		self.original_specification = specification
 		self.name = name
-		self.buckets = dict((bucket_id, Bucket(bucket_id, dict((node_id, Node(node_id, bucket_id, address, http_port, raw_port)) for node_id, (address, http_port, raw_port) in bucket.iteritems()))) \
-							for bucket_id, bucket in specification['buckets'].iteritems())
+		self.buckets = {}
+		for bucket_id, bucket in specification['buckets'].iteritems():
+			nodes = dict((node_id, Node(node_id, bucket_id, address, http_port, raw_port)) for node_id, (address, http_port, raw_port) in bucket.iteritems())
+			self.buckets[bucket_id] = Bucket(bucket_id, nodes)
+		# self.buckets = dict((bucket_id, Bucket(bucket_id, dict((node_id, Node(node_id, bucket_id, address, http_port, raw_port)) for node_id, (address, http_port, raw_port) in bucket.iteritems()))) \
+		# 					for bucket_id, bucket in specification['buckets'].iteritems())
 		self.nodes = dict((node_id, node) for bucket in self.buckets.itervalues() for node_id, node in bucket.nodes.iteritems())
 		hash_configuration = specification.get('hash', {})
 		self.consistent_hash = ConsistentHash(self.buckets.values(), **hash_configuration)
@@ -86,7 +93,7 @@ class Deployment(object):
 			'hash': {
 				'buckets_per_key': self.consistent_hash.buckets_per_key,
 			},
-			'buckets':dict((bucket.id, dict((node.id, [node.address, node.http_port, node.raw_port]) for node in bucket)) for bucket in self.buckets.values()),
+			'buckets':dict((bucket_id, bucket.specification()) for bucket_id, bucket in self.buckets.iteritems()),
 		}
 		return spec
 
