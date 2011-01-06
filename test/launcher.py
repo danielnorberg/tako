@@ -32,7 +32,7 @@ def launch(configuration_filepath, profiling=False, debug=False):
         with open(log_filepath, 'wb') as logfile:
             logfile.truncate()
         cmd = 'python bin/tako-node -id %s -cfg %s %s %s -l %s' % (node_id, configuration_filepath, profiling_cmd(node.id), debug_cmd, log_filepath)
-        if node_id in args.skip:
+        if args.skip and node_id in args.skip:
             print cmd
         else:
             processes.append(subprocess.Popen(cmd, shell=True))

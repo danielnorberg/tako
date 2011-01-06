@@ -21,3 +21,9 @@ deployments:
             b3:
                 n5: [localhost, 5715, 4715]
                 n6: [localhost, 5716, 4716]
+            b4:
+                n7: [localhost, 5717, 4717]
+                n8: [localhost, 5718, 4718]
+            b5:
+                n9: [localhost, 5719, 4719]
+                n10: [localhost, 5720, 4720]

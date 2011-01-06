@@ -153,17 +153,11 @@ class Configuration(object):
             spec['target_deployment'] = self.target_deployment_name
         return spec
 
-    def find_buckets_for_key(self, key, node):
-        """docstring for find_neighbour_buckets"""
-        key_buckets = self.active_deployment.consistent_hash.find_buckets(key)
-        if self.target_deployment:
-            key_buckets.update(self.target_deployment.consistent_hash.find_buckets(key))
-        return key_buckets
-
     def find_neighbour_nodes_for_key(self, key, local_node):
         """docstring for find_neighbour_nodes_for_key"""
-        buckets = self.find_buckets_for_key(key, local_node)
-        neighbour_nodes = dict((node.id, node) for bucket in buckets for node in bucket)
+        neighbour_nodes = dict([(node.id, node) for bucket in self.active_deployment.buckets_for_key(key) for node in bucket])
+        if self.target_deployment:
+            neighbour_nodes.update(dict([(node.id, node) for bucket in self.target_deployment.buckets_for_key(key) for node in bucket]))
         neighbour_nodes.pop(local_node.id, None)
         return neighbour_nodes
 

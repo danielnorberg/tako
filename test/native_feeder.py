@@ -3,6 +3,7 @@ import hashlib
 import time
 import logging
 import struct
+import random
 
 from socketless.channel import Channel, DisconnectedException
 
@@ -40,15 +41,15 @@ def main():
     last_time = time.time()
     print 'feeding %s' % repr(listener)
     i = 0
-    N = 1024
+    N = 1000
     while True:
         if time.time() - last_time > 1:
             last_time = time.time()
             print i
         try:
             for j in xrange(N):
-                value = sha256(i) * 128
-                key = str(i)
+                key = str(random.randint(0, 1000000))
+                value = sha256(key) * 16
                 request = 'S'
                 fragments = (struct.pack('!cLL', request, len(key), len(value)), key, value)
                 message = ''.join(fragments)

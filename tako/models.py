@@ -89,6 +89,9 @@ class Deployment(object):
         del siblings[node_id]
         return siblings.values()
 
+    def buckets_for_key(self, key):
+        return self.consistent_hash.find_buckets(key)
+
     def specification(self):
         spec = {
                 'read_repair': self.read_repair_enabled,

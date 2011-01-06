@@ -9,10 +9,9 @@ import struct
 from syncless import coio
 from syncless.util import Queue
 
-from socketless.messenger import Messenger
+from socketless.messenger import Messenger, invoke_all
 from socketless.channelserver import ChannelServer
 from socketless.channel import DisconnectedException
-from socketless.broadcast import Broadcast
 
 from utils.timestamp import Timestamp
 # from utils import convert
@@ -216,6 +215,10 @@ class InternalServer(object):
 class NodeServer(object):
     def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinators=[], var_directory='var'):
         super(NodeServer, self).__init__()
+        self.GET_VALUE = Requests.GET_VALUE
+        self.SET_VALUE = Requests.SET_VALUE
+        self.GET_TIMESTAMP = Requests.GET_TIMESTAMP
+
         self.id = node_id
         self.var_directory = os.path.join(paths.home, var_directory)
         self.store_file = store_file or os.path.join(self.var_directory, 'data', '%s.tcb' % self.id)
@@ -316,7 +319,8 @@ class NodeServer(object):
     def set_value(self, key, timestamped_value):
         debug.log("key: %s", key)
         self.store.set_timestamped(key, timestamped_value)
-        self.propagate(key, timestamped_value)
+        target_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
+        self.propagate(key, timestamped_value, target_nodes.values())
 
     def store_GET(self, start_response, path, body, env):
         debug.log('path: %s', path)
@@ -352,8 +356,7 @@ class NodeServer(object):
         debug.log('key: %s, node: %s', key, node)
         messengers = self.messengers_for_nodes([node])
         message = self.request_message(Requests.GET_VALUE, key)
-        broadcast = Broadcast(messengers)
-        [reply] = broadcast.send(message)
+        [reply] = invoke_all(message, messengers)
         reply = MessageReader(reply)
         if reply.read(1) == Responses.OK:
             return reply.read()
@@ -366,8 +369,7 @@ class NodeServer(object):
         neighbour_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
         messengers = self.messengers_for_nodes(neighbour_nodes.values())
         message = self.request_message(Requests.GET_TIMESTAMP, key)
-        broadcast = Broadcast(messengers)
-        replies = broadcast.send(message)
+        replies = invoke_all(message, messengers)
         timestamps = [(self.store.read_timestamp(timestamp_data[1:]) if timestamp_data and timestamp_data[0] == Responses.OK else None, node) for timestamp_data, node in replies]
         return timestamps
 
@@ -380,23 +382,29 @@ class NodeServer(object):
 
     def messengers_for_nodes(self, nodes):
         """docstring for messengers_for_nodes"""
-        messengers = [(node, self.node_messengers[node.id]) for node in nodes]
-        return messengers
+        return [(node, self.node_messengers[node.id]) for node in nodes]
 
-    def propagate(self, key, timestamped_value, target_nodes = []):
+    def null_callback(self, value, token):
+        pass
+
+    def propagate(self, key, timestamped_value, target_nodes):
         """docstring for propagate"""
-        debug.log('key: %s', key)
-        if not target_nodes:
-            target_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
-        debug.log('target_nodes: %s', target_nodes)
-        if not target_nodes:
-            return
-        message = self.request_message(Requests.SET_VALUE, key, timestamped_value)
-        messengers = self.messengers_for_nodes(target_nodes.values())
-        debug.log('messengers: %s', messengers)
-        broadcast = Broadcast(messengers)
-        replies = broadcast.send(message)
-        debug.log('replies: %s', replies)
+        # # debug.log('key: %s', key)
+        # if not target_nodes:
+        #     target_nodes =
+        # # debug.log('target_nodes: %s', target_nodes)
+        # if not target_nodes:
+        #     return
+        message = self.request_message(self.SET_VALUE, key, timestamped_value)
+        for node in target_nodes:
+            messenger = self.node_messengers[node.id]
+            messenger.send(message, node, self.null_callback)
+
+        # message = self.request_message(Requests.SET_VALUE, key, timestamped_value)
+        # messengers = self.messengers_for_nodes(target_nodes.values())
+        # debug.log('messengers: %s', messengers)
+        # for node, messenger in messengers:
+        #     messenger.send(message, node, self.null_callback)
 
     def read_repair(self, key, timestamped_value):
         """docstring for read_repair"""
