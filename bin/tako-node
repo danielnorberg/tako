@@ -19,11 +19,7 @@ from tako.nodeserver import NodeServer, NoConfigurationException
 
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
-
-    if args.debug:
-        debug.configure_logging('nodeserver', level)
-    else:
-        logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s: %(message)s")
+    debug.configure_logging('nodeserver', level, args.log_file)
 
     logging.info('--- Tako Node 0.1 ---')
     logging.info('Node id: %s', args.id)
@@ -66,6 +62,8 @@ def main():
     parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
+    parser.add_argument('-l', '--log-file', help='Log file.')
+
 
     args = parser.parse_args()
 

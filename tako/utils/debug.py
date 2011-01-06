@@ -21,12 +21,12 @@ def nop(*args):
 
 log = nop
 
-def configure_logging(appname, level=logging.INFO):
+def configure_logging(appname, level=logging.INFO, filename=None):
     global log
     if level <= logging.DEBUG:
         log = logging.debug
-    formatter = logging.Formatter("%(asctime)-15s %(levelname)s (%(process)d) %(filename)s:%(lineno)d %(funcName)s(): %(message)s")
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    logging.getLogger().addHandler(handler)
-    logging.getLogger().setLevel(level)
+        format = "%(asctime)-15s %(levelname)s (%(process)d) %(filename)s:%(lineno)d %(funcName)s(): %(message)s"
+    else:
+        log = nop
+        format="%(asctime)-15s %(levelname)s: %(message)s"
+    logging.basicConfig(level=level, filename=filename, format=format)

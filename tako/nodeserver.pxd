@@ -5,9 +5,9 @@ from store cimport Store
 # from socketless.channelserver cimport ChannelServer
 
 cdef class MessageReader(object):
-	cdef str message
+	cdef object message
 	cdef unsigned long i
-	cpdef str read(self, unsigned long length=*)
+	cpdef object read(self, unsigned long length=*)
 	cpdef unsigned long read_int(self)
 
 # cdef class Requests:
@@ -71,7 +71,7 @@ cdef class InternalServer(object):
 	cdef dict public_handlers
 
 	cdef handshake(self, channel)
-	cpdef _flush_loop(channel, flush_queue)
+	cpdef _flush_loop(self, channel, flush_queue)
 	cpdef handle_connection(self, channel, addr)
 	cpdef internal_get_value(self, message, channel)
 	cpdef internal_set_value(self, message, channel)

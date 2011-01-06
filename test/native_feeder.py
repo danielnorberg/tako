@@ -47,7 +47,7 @@ def main():
             print i
         try:
             for j in xrange(N):
-                value = sha256(i)
+                value = sha256(i) * 128
                 key = str(i)
                 request = 'S'
                 fragments = (struct.pack('!cLL', request, len(key), len(value)), key, value)

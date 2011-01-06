@@ -102,7 +102,7 @@ class InternalServer(object):
 
         debug.log('Succesfully completed handshake.')
 
-    def _flush_loop(channel, flush_queue):
+    def _flush_loop(self, channel, flush_queue):
         try:
             while True:
                 flush_queue.popleft()

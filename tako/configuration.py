@@ -164,7 +164,7 @@ class Configuration(object):
         """docstring for find_neighbour_nodes_for_key"""
         buckets = self.find_buckets_for_key(key, local_node)
         neighbour_nodes = dict((node.id, node) for bucket in buckets for node in bucket)
-        neighbour_nodes.pop(local_node.id)
+        neighbour_nodes.pop(local_node.id, None)
         return neighbour_nodes
 
     def find_neighbour_nodes_for_node(self, local_node):
@@ -173,7 +173,7 @@ class Configuration(object):
         if self.target_deployment and local_node.id in self.target_deployment.nodes:
             neighbour_buckets.extend(self.target_deployment.consistent_hash.find_neighbour_buckets(node_bucket))
         neighbour_nodes = dict((node.id, node) for bucket in neighbour_buckets for node in bucket)
-        neighbour_nodes.pop(local_node.id)
+        neighbour_nodes.pop(local_node.id, None)
         return neighbour_nodes
 
 class TestConfiguration(testcase.TestCase):
