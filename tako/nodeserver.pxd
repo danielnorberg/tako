@@ -24,7 +24,7 @@ cdef class MessageReader(object):
 # cdef INTERNAL_HANDSHAKE = ('Tako Internal API', 'K')
 # cdef PUBLIC_HANDSHAKE = ('Tako Public API', 'K')
 
-cdef class InternalServer
+# cdef class InternalServer
 
 cdef class NodeServer(object):
     cdef str SET_VALUE
@@ -36,7 +36,7 @@ cdef class NodeServer(object):
     cdef object store_file
     cdef str configuration_directory
     cdef object configuration_cache
-    cdef Store store
+    cdef public Store store
     cdef dict node_messengers
     cdef tuple http_handlers
     cdef Configuration configuration
@@ -44,7 +44,7 @@ cdef class NodeServer(object):
     cdef bint read_repair_enabled
     cdef Node node
     cdef unsigned int http_port
-    cdef InternalServer internal_server
+    cdef object internal_server
     cdef HttpServer http_server
     cdef list coordinators
 
@@ -55,32 +55,32 @@ cdef class NodeServer(object):
     cdef request_message(self, str request, str key=*, object value=*)
     cdef quote(self, key)
     cdef unquote(self, path)
-    cdef get_value(self, key)
-    cdef set_value(self, key, timestamped_value)
+    cpdef get_value(self, key)
+    cpdef set_value(self, key, timestamped_value)
     cpdef store_GET(self, start_response, path, body, env)
     cpdef store_POST(self, start_response, path, body, env)
-    cdef fetch_value(self, key, node)
-    cdef fetch_timestamps(self, key)
-    cdef get_timestamp(self, env)
+    cpdef fetch_value(self, key, node)
+    cpdef fetch_timestamps(self, key)
+    cpdef get_timestamp(self, env)
     cdef messengers_for_nodes(self, nodes)
     cdef propagate(self, str key, object timestamped_value, list target_nodes)
     cdef read_repair(self, str key, object timestamped_value)
-
-
-cdef class InternalServer(object):
-    cdef tuple listener
-    cdef object channel_server
-    cdef NodeServer node_server
-    cdef dict internal_handlers
-    cdef dict public_handlers
-
-    cdef handshake(self, channel)
-    cpdef _flush_loop(self, channel, flush_queue)
-    cpdef handle_connection(self, channel, addr)
-    cpdef internal_get_value(self, message, channel)
-    cpdef internal_set_value(self, message, channel)
-    cpdef internal_get_timestamp(self, message, channel)
-    cpdef public_get_value(self, message, channel)
-    cpdef public_set_value(self, message, channel)
-    cpdef handle_public_connection(self, message, channel)
-    cpdef serve(self)
+#
+#
+# cdef class InternalServer(object):
+#     cdef tuple listener
+#     cdef object channel_server
+#     cdef NodeServer node_server
+#     cdef dict internal_handlers
+#     cdef dict public_handlers
+#
+#     cdef handshake(self, channel)
+#     cpdef _flush_loop(self, channel, flush_queue)
+#     cpdef handle_connection(self, channel, addr)
+#     cpdef internal_get_value(self, message, channel)
+#     cpdef internal_set_value(self, message, channel)
+#     cpdef internal_get_timestamp(self, message, channel)
+#     cpdef public_get_value(self, message, channel)
+#     cpdef public_set_value(self, message, channel)
+#     cpdef handle_public_connection(self, message, channel)
+#     cpdef serve(self)

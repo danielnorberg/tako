@@ -61,78 +61,36 @@ class Responses:
     NOT_FOUND = 'N'
     ERROR = 'E'
 
-INTERNAL_HANDSHAKE = ('Tako Internal API', 'K')
-PUBLIC_HANDSHAKE = ('Tako Public API', 'K')
+# INTERNAL_HANDSHAKE = ('Tako Internal API', 'K')
+# PUBLIC_HANDSHAKE = ('Tako Public API', 'K')
 
-class InternalServer(object):
-    """docstring for Server"""
-    def __init__(self, listener, node_server):
-        super(InternalServer, self).__init__()
+class ServiceServer(object):
+    """docstring for ServiceServer"""
+    def __init__(self, listener, services):
+        super(ServiceServer, self).__init__()
+        self.services = dict((service.handshake[0], service) for service in services)
         self.listener = listener
         self.channel_server = ChannelServer(self.listener, handle_connection=self.handle_connection)
-        self.node_server = node_server
-        self.internal_handlers = dict({
-                Requests.GET_VALUE: self.internal_get_value,
-                Requests.SET_VALUE: self.internal_set_value,
-                Requests.GET_TIMESTAMP: self.internal_get_timestamp,
-        })
-        self.public_handlers = {
-                Requests.GET_VALUE: self.public_get_value,
-                Requests.SET_VALUE: self.public_set_value,
-        }
 
     def handshake(self, channel):
         debug.log('Awaiting challenge.')
         challenge = channel.recv()
         debug.log('Got challenge: "%s"', challenge)
-        if challenge == INTERNAL_HANDSHAKE[0]:
-            debug.log('Correct challenge, sending response: "%s"', INTERNAL_HANDSHAKE[1])
-            channel.send(INTERNAL_HANDSHAKE[1])
-            channel.flush()
-            return self.internal_handlers
-        if challenge == PUBLIC_HANDSHAKE[0]:
-            debug.log('Correct challenge, sending response: "%s"', PUBLIC_HANDSHAKE[1])
-            channel.send(PUBLIC_HANDSHAKE[1])
-            channel.flush()
-            return self.public_handlers
-        logging.warning('Failed handshake!')
-        channel.send(Responses.ERROR)
-        return None
-
+        service = self.services.get(challenge, None)
+        if not service:
+            logging.warning('Failed handshake!')
+            channel.send(Responses.ERROR)
+            return None
+        debug.log('Correct challenge, sending response: "%s"', service.handshake[1])
+        channel.send(service.handshake[1])
+        channel.flush()
         debug.log('Succesfully completed handshake.')
-
-    def _flush_loop(self, channel, flush_queue):
-        try:
-            while True:
-                flush_queue.popleft()
-                channel.flush()
-        except DisconnectedException:
-            pass
-
+        return service
 
     def handle_connection(self, channel, addr):
         try:
-            handlers = self.handshake(channel)
-            if handlers:
-                flush_queue = Queue()
-                flusher = coio.stackless.tasklet(self._flush_loop)(channel, flush_queue)
-                try:
-                    while True:
-                        message = channel.recv()
-                        if not message:
-                            debug.log('Channel closing.')
-                            break
-                        reader = MessageReader(message)
-                        request = reader.read(1)
-                        handler = handlers.get(request, None)
-                        if not handler:
-                            channel.send(Responses.ERROR)
-                            return
-                        handler(reader, channel)
-                        if len(flush_queue) == 0:
-                            flush_queue.append(True)
-                finally:
-                    flusher.kill()
+            service = self.handshake(channel)
+            service.handle_connection(channel)
         except DisconnectedException:
             logging.info('client %s disconnected', addr)
         except BaseException, e:
@@ -143,74 +101,114 @@ class InternalServer(object):
             except DisconnectedException, e:
                 pass
 
-    def internal_get_value(self, message, channel):
-        key_length = message.read_int()
-        key = message.read(key_length)
-        debug.log('key: %s', key)
-        timestamped_value = self.node_server.store.get_timestamped(key)
-        if timestamped_value:
-            channel.send_joined(Responses.OK, timestamped_value)
-        else:
-            channel.send(Responses.NOT_FOUND)
-
-    def internal_set_value(self, message, channel):
-        key_length = message.read_int()
-        value_length = message.read_int()
-        key = message.read(key_length)
-        debug.log('key: %s', key)
-        value = message.read(value_length)
-        self.node_server.store.set_timestamped(key, value)
-        channel.send(Responses.OK)
-
-    def internal_get_timestamp(self, message, channel):
-        key_length = message.read_int()
-        key = message.read(key_length)
-        debug.log('key: %s', key)
-        value, timestamp = self.node_server.store.get(key)
-        if timestamp:
-            channel.send_joined(Responses.OK, struct.pack('!Q', timestamp.microseconds))
-        else:
-            channel.send(Responses.NOT_FOUND)
-
-    def public_get_value(self, message, channel):
-        key_length = message.read_int()
-        key = message.read(key_length)
-        debug.log('key: %s', key)
-        timestamped_value = self.node_server.get_value(key)
-        if timestamped_value:
-            channel.send_joined(Responses.OK, timestamped_value)
-        else:
-            channel.send(Responses.NOT_FOUND)
-
-    def public_set_value(self, message, channel):
-        key_length = message.read_int()
-        value_length = message.read_int()
-        key = message.read(key_length)
-        debug.log('key: %s', key)
-        timestamped_value = message.read(value_length)
-        self.node_server.set_value(key, timestamped_value)
-        channel.send(Responses.OK)
-
-    def handle_public_connection(self, message, channel):
-        """docstring for handle_public_connection"""
-        while True:
-            message = channel.recv()
-            if not message:
-                break
-            message = MessageReader(message)
-            operation = message.read(1)
-            if operation == Requests.SET_VALUE:
-                key_length = message.read_int()
-                value_length = message.read_int()
-                key = message.read(key_length)
-                value = message.read(value_length)
-                self.node_server.store.set_timestamped(key, value)
-                channel.send(Responses.OK)
-
     def serve(self):
         logging.info("Listening on %s", self.listener)
         self.channel_server.serve()
 
+
+class Service(object):
+    """docstring for Service"""
+    def __init__(self, handshake, handlers):
+        super(Service, self).__init__()
+        self.handshake = handshake
+        self.handlers = handlers
+
+    def _flush_loop(self, channel, flush_queue):
+        try:
+            while True:
+                flush_queue.popleft()
+                channel.flush()
+        except DisconnectedException:
+            pass
+
+    def handle_connection(self, channel):
+        flush_queue = Queue()
+        flusher = coio.stackless.tasklet(self._flush_loop)(channel, flush_queue)
+        try:
+            while True:
+                message = channel.recv()
+                if not message:
+                    debug.log('Channel closing.')
+                    break
+                reader = MessageReader(message)
+                request = reader.read(1)
+                handler = self.handlers.get(request, None)
+                if not handler:
+                    channel.send(Responses.ERROR)
+                    return
+                response = handler(reader)
+                channel.send(response)
+                if len(flush_queue) == 0:
+                    flush_queue.append(True)
+        finally:
+            flusher.kill()
+
+class InternalNodeService(Service):
+    def __init__(self, node_server):
+        super(InternalNodeService, self).__init__(('Tako Internal API', 'K'), {
+            'G': self.get,
+            'S': self.set,
+            'T': self.stat,
+        })
+        self.node_server = node_server
+
+    def get(self, arguments):
+        key_length = arguments.read_int()
+        key = arguments.read(key_length)
+        debug.log('key: %s', key)
+        timestamped_value = self.node_server.store.get_timestamped(key)
+        if timestamped_value:
+            return (Responses.OK, timestamped_value)
+        else:
+            return Responses.NOT_FOUND
+
+    def set(self, arguments):
+        key_length = arguments.read_int()
+        value_length = arguments.read_int()
+        key = arguments.read(key_length)
+        debug.log('key: %s', key)
+        value = arguments.read(value_length)
+        self.node_server.store.set_timestamped(key, value)
+        return Responses.OK
+
+    def stat(self, arguments):
+        key_length = arguments.read_int()
+        key = arguments.read(key_length)
+        debug.log('key: %s', key)
+        value, timestamp = self.node_server.store.get(key)
+        if timestamp:
+            return (Responses.OK, struct.pack('!Q', timestamp.microseconds))
+        else:
+            return Responses.NOT_FOUND
+
+class PublicNodeService(Service):
+    """docstring for PublicNodeService"""
+    def __init__(self, node_server):
+        super(PublicNodeService, self).__init__(('Tako Public API', 'K'), {
+            'G': self.get,
+            'S': self.set,
+            # 'T': self.stat,
+        })
+        self.node_server = node_server
+
+    def get(self, arguments):
+          key_length = arguments.read_int()
+          key = arguments.read(key_length)
+          debug.log('key: %s', key)
+          timestamped_value = self.node_server.get_value(key)
+          if timestamped_value:
+              return (Responses.OK, timestamped_value)
+          else:
+              return Responses.NOT_FOUND
+
+    def set(self, arguments):
+        key_length = arguments.read_int()
+        value_length = arguments.read_int()
+        key = arguments.read(key_length)
+        debug.log('key: %s', key)
+        timestamped_value = arguments.read(value_length)
+        self.node_server.set_value(key, timestamped_value)
+        return Responses.OK
 
 class NodeServer(object):
     def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinators=[], var_directory='var'):
@@ -260,7 +258,7 @@ class NodeServer(object):
                 messenger.close()
         for node_id, node in neighbour_nodes.iteritems():
             if node_id not in new_node_messengers:
-                new_node_messengers[node_id] = Messenger((node.address, node.raw_port), handshake=INTERNAL_HANDSHAKE)
+                new_node_messengers[node_id] = Messenger((node.address, node.raw_port), handshake=('Tako Internal API', 'K'))
         self.node_messengers = new_node_messengers
 
     def set_configuration(self, new_configuration):
@@ -284,7 +282,10 @@ class NodeServer(object):
         while not self.configuration:
             debug.log('Waiting for configuration.')
             coio.sleep(1)
-        self.internal_server = InternalServer(listener=(self.node.address, self.node.raw_port), node_server=self)
+        self.internal_server = ServiceServer(listener=(self.node.address, self.node.raw_port), services=(
+            InternalNodeService(self),
+            PublicNodeService(self),
+        ))
         self.internal_server.serve()
         self.http_server = httpserver.HttpServer(listener=(self.node.address, self.node.http_port), handlers=self.http_handlers)
         self.http_server.serve()
@@ -392,7 +393,7 @@ class NodeServer(object):
         # # debug.log('key: %s', key)
         # if not target_nodes:
         #     target_nodes =
-        # # debug.log('target_nodes: %s', target_nodes)
+        debug.log('target_nodes: %s', target_nodes)
         # if not target_nodes:
         #     return
         message = self.request_message(self.SET_VALUE, key, timestamped_value)
