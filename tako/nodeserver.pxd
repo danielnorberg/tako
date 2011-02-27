@@ -5,27 +5,6 @@ from store cimport Store
 from configuration cimport Configuration
 from httpserver cimport HttpServer
 
-cdef class MessageReader(object):
-    cdef object message
-    cdef unsigned long i
-    cpdef object read(self, unsigned long length=*)
-    cpdef unsigned long read_int(self)
-
-# cdef class Requests:
-#       cdef GET_VALUE = 'G'
-#       cdef SET_VALUE = 'S'
-#       cdef GET_TIMESTAMP = 'T'
-#
-# cdef class Responses:
-#       cdef OK = 'K'
-#       cdef NOT_FOUND = 'N'
-#       cdef ERROR = 'E'
-
-# cdef INTERNAL_HANDSHAKE = ('Tako Internal API', 'K')
-# cdef PUBLIC_HANDSHAKE = ('Tako Public API', 'K')
-
-# cdef class InternalServer
-
 cdef class NodeServer(object):
     cdef str SET_VALUE
     cdef str GET_VALUE
@@ -37,7 +16,7 @@ cdef class NodeServer(object):
     cdef str configuration_directory
     cdef object configuration_cache
     cdef public Store store
-    cdef dict node_messengers
+    cdef dict node_clients
     cdef tuple http_handlers
     cdef Configuration configuration
     cdef Deployment deployment
@@ -47,40 +26,28 @@ cdef class NodeServer(object):
     cdef object internal_server
     cdef HttpServer http_server
     cdef list coordinators
+    cdef object internal_multi_client
 
     cdef evaluate_new_configuration(self, new_configuration)
-    cdef initialize_messenger_pool(self)
     cdef set_configuration(self, new_configuration)
+    cdef initialize_node_client_pool(self)
+    cpdef clients_for_nodes(self, nodes)
     cpdef serve(self)
-    cdef request_message(self, str request, str key=*, object value=*)
-    cdef quote(self, key)
-    cdef unquote(self, path)
-    cpdef get_value(self, key)
-    cpdef set_value(self, key, timestamped_value)
-    cpdef store_GET(self, start_response, path, body, env)
-    cpdef store_POST(self, start_response, path, body, env)
+
     cpdef fetch_value(self, key, node)
     cpdef fetch_timestamps(self, key)
     cpdef get_timestamp(self, env)
-    cdef messengers_for_nodes(self, nodes)
     cdef propagate(self, str key, object timestamped_value, list target_nodes)
     cdef read_repair(self, str key, object timestamped_value)
-#
-#
-# cdef class InternalServer(object):
-#     cdef tuple listener
-#     cdef object channel_server
-#     cdef NodeServer node_server
-#     cdef dict internal_handlers
-#     cdef dict public_handlers
-#
-#     cdef handshake(self, channel)
-#     cpdef _flush_loop(self, channel, flush_queue)
-#     cpdef handle_connection(self, channel, addr)
-#     cpdef internal_get_value(self, message, channel)
-#     cpdef internal_set_value(self, message, channel)
-#     cpdef internal_get_timestamp(self, message, channel)
-#     cpdef public_get_value(self, message, channel)
-#     cpdef public_set_value(self, message, channel)
-#     cpdef handle_public_connection(self, message, channel)
-#     cpdef serve(self)
+
+    cdef quote(self, key)
+    cdef unquote(self, path)
+    cpdef store_GET(self, start_response, path, body, env)
+    cpdef store_POST(self, start_response, path, body, env)
+
+    cpdef public_get(self, callback, key)
+    cpdef public_set(self, callback, key, timestamped_value)
+    cpdef public_stat(self, callback, key)
+    cpdef internal_get(self, callback, key)
+    cpdef internal_set(self, callback, key, timestamped_value)
+    cpdef internal_stat(self, callback, key)

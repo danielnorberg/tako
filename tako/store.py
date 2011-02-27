@@ -85,6 +85,10 @@ class Store(object):
         #debug.log('key: %s, value: None, timestamp: None', repr(key))
         return None
 
+    def get_timestamp(self, key):
+        """docstring for get_timestamp"""
+        return self.get(key)[1]
+
     def get(self, key):
         """docstring for get"""
         # #debug.log('%s', repr(key))
