@@ -54,5 +54,5 @@ class HttpServer(object):
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.address, self.port))
         self.server_socket.listen(self.listen_queue_size)
-        logging.info('listening on %r' % (self.server_socket.getsockname(),))
+        logging.debug('listening on %r' % (self.server_socket.getsockname(),))
         wsgi.WsgiListener(self.server_socket, self.handle_request)

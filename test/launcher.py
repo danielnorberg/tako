@@ -4,40 +4,52 @@ import os
 import signal
 import time
 import argparse
+import logging
 
 import paths
 
 from tako.configuration import Configuration
+from tako.utils import debug
 
 def launch(configuration_filepath, profiling=False, debug=False):
-    """docstring for launch"""
+
+    logging.info('Using configuration file: %s', configuration_filepath)
+
     os.chdir(paths.home)
     profiling_cmd = lambda nodeid: profiling and '-p nodeserver-%s.prof' % nodeid or ''
     debug_cmd = '-d' if debug else ''
     absolute_configuration_filepath = paths.path(configuration_filepath)
     cfg = Configuration(yaml.load(open(absolute_configuration_filepath)))
-    # coordinator_cmds = ['python bin/tako-coordinator -id %s -cfg test/local_cluster.yaml &> var/log/coordinator-%s.log' % (coordinator.id, coordinator.id) for coordinator in cfg.coordinators.itervalues()]
-    # node_cmds = ['python bin/tako-node -id %s -c localhost 4701 %s %s &> var/log/node-%s.log' % (node.id, profiling_cmd(node.id), debug_cmd, node.id) for node in cfg.active_deployment.nodes.itervalues()]
-    # for cmd in coordinator_cmds:
-    #       subprocess.Popen(cmd, shell=True)
-    # time.sleep(1)
 
-    print 'Starting processes.'
-    if args.skip:
-        print 'Printing launch commands for skipped nodes:'
+    logging.info('Starting coordinator processes.')
 
     processes = []
+
+    for coordinator in cfg.coordinators.itervalues():
+        cmd = 'python bin/tako-coordinator -id %s -cfg %s &> var/log/coordinator-%s.log' % (coordinator.id, configuration_filepath, coordinator.id)
+        proc = subprocess.Popen(cmd, shell=True)
+        processes.append(proc)
+        logging.info('Launched Coordinator "%s" (pid: %d)', coordinator.id, proc.pid)
+        logging.debug('command: %s', cmd)
+
+    logging.info('Done.')
+    logging.info('Starting node processes.')
+
     for node_id, node in cfg.active_deployment.nodes.iteritems():
         log_filepath = 'var/log/node-%s.log' % node_id
         with open(log_filepath, 'wb') as logfile:
             logfile.truncate()
         cmd = 'python bin/tako-node -id %s -cfg %s %s %s -l %s' % (node_id, configuration_filepath, profiling_cmd(node.id), debug_cmd, log_filepath)
         if args.skip and node_id in args.skip:
-            print cmd
+            logging.info('Skipped Node "%s". Command: %s', node_id, cmd)
         else:
-            processes.append(subprocess.Popen(cmd, shell=True))
+            proc = subprocess.Popen(cmd, shell=True)
+            processes.append(proc)
+            logging.info('Launched Node "%s" (pid: %d)', node_id, proc.pid)
+            logging.debug('command: %s', cmd)
 
-    print 'Launched. Ctrl-C to exit.'
+    logging.info('Done.')
+    logging.info('Ctrl-C to exit.')
 
     try:
         while True:
@@ -45,13 +57,13 @@ def launch(configuration_filepath, profiling=False, debug=False):
     except:
         pass
 
-    print 'Terminating processes.'
+    logging.info('Terminating processes.')
 
     for process in processes:
-        os.kill(process.pid, signal.SIGKILL)
+        os.kill(process.pid, signal.SIGTERM)
 
-    print 'Done.'
-    print 'Exiting...'
+    logging.info('Done.')
+    logging.info('Exiting...')
 
 
 if __name__ == '__main__':
@@ -61,4 +73,8 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-s', '--skip', help='Skip node.', type=str, nargs='+')
     args = parser.parse_args()
+
+    logging_level = logging.DEBUG if args.debug else logging.INFO
+    debug.configure_logging('Tako Node', logging_level)
+
     launch(args.configuration, args.profiling, args.debug)

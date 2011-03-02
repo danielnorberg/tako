@@ -2,12 +2,14 @@
 
 import argparse
 from utils import debug
-import os, sys
+import os
 import httpserver
 import simplejson as json
 import configuration
+import logging
 
 from configuration import Configuration
+from utils.timestamp import Timestamp
 
 class BadRequest(object):
     """docstring for BadRequest"""
@@ -23,30 +25,35 @@ class BadRequest(object):
         """docstring for __repr__"""
         return "BadRequest('%s')" % self.description
 
-class CoordinatorServer(httpserver.HttpServer):
+class CoordinatorServer(object):
     def __init__(self, coordinator_id, configuration, configuration_filepath):
         super(CoordinatorServer, self).__init__()
         self.id = coordinator_id
         self.original_configuration = configuration
         self.configuration = Configuration(configuration.specification())
+        self.configuration.timestamp = Timestamp.from_seconds(os.stat(configuration_filepath).st_mtime)
+        logging.debug('timestamp: %s', self.configuration.timestamp)
         self.coordinator = configuration.coordinators[self.id]
         self.configuration_filepath = configuration_filepath
-        self.handlers = (
+        self.http_handlers = (
                 ('/configuration', {'GET': self.configuration_GET}),
         )
-        self.port = self.coordinator.port
+        self.http_server = None
 
     def reload_configuration(self):
-        """docstring for reload_configuration"""
         pass
 
     def configuration_GET(self, start_response, path, body, env):
-        """docstring for configuration_GET"""
+        logging.debug(str(self.configuration.timestamp))
         start_response('200 OK', [
-                ('Content-Type', 'application/json'),
-                ('X-TimeStamp', str(self.configuration.timestamp)),
+                ('content-type', 'application/json'),
+                ('x-timestamp', str(self.configuration.timestamp)),
         ])
         return [json.dumps(self.configuration.specification())]
+
+    def serve(self):
+        self.http_server = httpserver.HttpServer(listener=(self.coordinator.address, self.coordinator.port), handlers=self.http_handlers)
+        self.http_server.serve()
 
 def main():
     debug.configure_logging('coordinatorserver')
@@ -58,20 +65,19 @@ def main():
     try:
         args = parser.parse_args()
     except IOError, e:
-        print >> sys.stderr, str(e)
+        logging.error(e)
         exit(-1)
 
     cfg = configuration.try_load_file(args.config)
 
     if not cfg:
-        print >> sys.stderr, 'Failed to load configuration.'
+        logging.error('Failed to load configuration.')
         exit(-1)
 
-    print 'Tako Coordinator'
-    print '-' * 80
-    print 'Coordinator id: %s' % args.id
-    print 'Config file: %s' % (args.config)
-    print 'Serving up %s on port %d' % (args.config, cfg.coordinators[args.id].port)
+    logging.info('Tako Coordinator Starting')
+    logging.info('Coordinator id: %s', args.id)
+    logging.info('Config file: %s', args.config)
+    logging.info('Serving up %s on port %d', args.config, cfg.coordinators[args.id].port)
 
     try:
         server = CoordinatorServer(args.id, cfg, args.config)
@@ -79,8 +85,7 @@ def main():
     except KeyboardInterrupt:
         pass
 
-    print
-    print 'Exiting...'
+    logging.info('Exiting...')
 
 if __name__ == '__main__':
     import paths

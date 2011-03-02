@@ -5,6 +5,7 @@ import shutil
 import processing
 import tempfile, os
 import debug
+import logging
 
 class TestCase(unittest.TestCase):
 
@@ -14,7 +15,7 @@ class TestCase(unittest.TestCase):
         self.directories = []
         self.processes = []
         if not hasattr(self, 'logging_is_configured'):
-            debug.configure_logging(type(self).__name__)
+            debug.configure_logging(type(self).__name__, logging.DEBUG)
             self.logging_is_configured = True
 
     def tearDown(self):

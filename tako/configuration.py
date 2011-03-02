@@ -81,16 +81,16 @@ def validate_specification(specification):
                 for node_id, node in bucket.iteritems():
                     assert len(node) == 3
                     address, http_port, raw_port = node
-                    assert type(address) == str
-                    assert type(http_port) == int
-                    assert type(raw_port) == int
+                    assert type(address) == str, 'type(address) == %s != str' % type(address)
+                    assert type(http_port) == int, 'type(http_port) == %s != int' % type(http_port)
+                    assert type(raw_port) == int, 'type(raw_port) == %s != int' % type(raw_port)
         if 'master_coordinator' in specification:
             assert specification['master_coordinator'] in specification['coordinators']
         for coordinator_id, coordinator in specification.get('coordinators', {}).iteritems():
             assert len(coordinator) == 2
             address, port = coordinator
-            assert type(address) == str
-            assert type(port) == int
+            assert type(address) == str, 'type(address) == %s != str' % type(address)
+            assert type(port) == int, 'type(port) == %s != int' % type(port)
     except AssertionError:
         raise
         # raise ValidationError()

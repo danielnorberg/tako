@@ -21,7 +21,7 @@ def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
     debug.configure_logging('nodeserver', level, args.log_file)
 
-    logging.info('--- Tako Node 0.1 ---')
+    logging.info('Tako Node Starting')
     logging.info('Node id: %s', args.id)
 
     config = None
@@ -63,7 +63,6 @@ def main():
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
     parser.add_argument('-l', '--log-file', help='Log file.')
-
 
     args = parser.parse_args()
 
