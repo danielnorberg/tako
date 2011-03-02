@@ -1,9 +1,16 @@
 import argparse
-import urllib3
 import hashlib
 import time
-
 import logging
+import struct
+import random
+
+from syncless import coio
+
+import paths
+
+from socketless.service import Client
+from tako.nodeserver import PublicNodeServiceProtocol
 
 def sha256(v):
     sha = hashlib.sha256()
@@ -26,27 +33,30 @@ def main():
     else:
         logging.basicConfig(level=logging.ERROR)
 
-    host_url = 'http://%s:%d/' % (args.address, args.port)
-    http_pool = urllib3.connection_from_url(host_url)
+    listener = (args.address, args.port)
+    client = Client(listener, PublicNodeServiceProtocol())
+    while not client.is_connected():
+        coio.sleep(0.01)
 
     last_time = time.time()
-    print 'feeding %s' % host_url
+    print 'feeding %s' % repr(listener)
     i = 0
+    N = 1000
     while True:
-        key = str(i)
-        value = sha256(i)
-        url = '/store/' + key
         if time.time() - last_time > 1:
             last_time = time.time()
             print i
-            print 'Posting to %s' % url
-        try:
-            r = http_pool.urlopen('POST', url, body=value)
+        collector = client.set_collector(N)
+        for j in xrange(N):
+            key = sha256('%d:%d' % (i, j))
+            value = sha256(key) * 16
+            client.set_async(collector, key, value)
             i += 1
-        except IOError:
-            print 'Failed...'
+        collector.collect()
+        if not client.is_connected():
+            exit(-1)
         if args.delay:
-            time.sleep(args.delay)
+            coio.sleep(args.delay)
         if args.limit > 0 and i >= args.limit:
             break
 

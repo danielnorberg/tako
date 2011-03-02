@@ -1,3 +1,4 @@
 *.pyc
 var/*
 .DS_Store
+*.c
