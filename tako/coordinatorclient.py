@@ -13,7 +13,10 @@ from utils.timestamp import Timestamp
 from utils import http
 
 import configuration
+
 import paths
+paths.setup()
+
 from coordinatorserver import CoordinatorServer
 
 class CoordinatorClient(object):

@@ -5,7 +5,10 @@ import os, logging
 from utils import testcase
 from utils.timestamp import Timestamp
 import configuration
+
 import paths
+paths.setup()
+
 
 MAX_CONFIGURATION_HISTORY = 10
 

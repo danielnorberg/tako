@@ -8,18 +8,17 @@ import email.utils
 from syncless import coio
 from socketless import service
 
+import paths
+paths.setup()
+
 from utils.timestamp import Timestamp
 from utils import debug
 
 import httpserver
-import paths
-from store import Store
-# import configuration
 from configurationcache import ConfigurationCache
-# from configuration import Coordinator
-# from coordinatorclient import CoordinatorClient
-
-from socketless.service import Service, Server, Protocol, Method
+from coordinatorclient import CoordinatorClient
+from protocols import InternalNodeServiceProtocol, PublicNodeServiceProtocol
+from store import Store
 
 class NoConfigurationException(BaseException):
     pass
@@ -27,6 +26,7 @@ class NoConfigurationException(BaseException):
 class NodeServer(object):
     def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinators=[], var_directory='var'):
         super(NodeServer, self).__init__()
+        debug.log('node_id = %s, store_file = %s, explicit_configuration = %s, coordinators = %s, var_directory = %s', node_id, store_file, explicit_configuration, coordinators, var_directory)
         self.id = node_id
         self.var_directory = os.path.join(paths.home, var_directory)
         self.store_file = store_file or os.path.join(self.var_directory, 'data', '%s.tcb' % self.id)
@@ -42,7 +42,7 @@ class NodeServer(object):
                 # ('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
                 # ('/stat/', {'GET':self.stat_GET}),
         )
-        # self.coordinator_client = CoordinatorClient(coordinators=self.coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
+        self.coordinator_client = CoordinatorClient(coordinators=self.coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
 
         self.configuration = None
         if explicit_configuration:
@@ -82,7 +82,7 @@ class NodeServer(object):
         self.initialize_node_client_pool()
 
     def serve(self):
-        # self.coordinator_client.start()
+        self.coordinator_client.start()
         logging.info('Checking Configuration.')
         if not self.configuration and not self.coordinators:
             logging.critical('Missing Configuration!')
@@ -90,7 +90,7 @@ class NodeServer(object):
         while not self.configuration:
             debug.log('Waiting for configuration.')
             coio.sleep(1)
-        self.internal_server = Server(listener=(self.node.address, self.node.raw_port), services=(
+        self.internal_server = service.Server(listener=(self.node.address, self.node.raw_port), services=(
             InternalNodeService(self),
             PublicNodeService(self),
         ))
@@ -219,23 +219,7 @@ class NodeServer(object):
 
         return timestamped_value
 
-class InternalNodeServiceProtocol(Protocol):
-    handshake = ('Tako Internal Node API Service', 'Tako Internal Node API Client')
-    methods = dict(
-        get  = Method('g', [('key', str)], [('value', str)]), # key -> value
-        set  = Method('s', [('key', str), ('value', str)], []), # key, value -> None
-        stat = Method('t', [('key', str)], [('timestamp', long)]), # key -> timestamp
-    )
-
-class PublicNodeServiceProtocol(Protocol):
-    handshake = ('Tako Public Node API Service', 'Tako Public Node API Client')
-    methods = dict(
-        get = Method('g', [('key', str)], [('value', str)]), # key -> value
-        set = Method('s', [('key', str), ('value', str)], []), # key, value -> None
-        stat = Method('t', [('key', str)], [('timestamp', long)]), # key -> timestamp
-    )
-
-class InternalNodeService(Service):
+class InternalNodeService(service.Service):
     def __init__(self, node_server):
         super(InternalNodeService, self).__init__(InternalNodeServiceProtocol(),
             get=node_server.internal_get,
@@ -243,7 +227,7 @@ class InternalNodeService(Service):
             stat=node_server.internal_stat,
         )
 
-class PublicNodeService(Service):
+class PublicNodeService(service.Service):
     """docstring for PublicNodeService"""
     def __init__(self, node_server):
         super(PublicNodeService, self).__init__(PublicNodeServiceProtocol(),

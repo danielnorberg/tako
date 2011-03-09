@@ -2,11 +2,11 @@ import yaml
 import subprocess
 import os
 import signal
-import time
 import argparse
 import logging
 
 import paths
+paths.setup()
 
 from tako.configuration import Configuration
 from tako.utils import debug
@@ -35,11 +35,13 @@ def launch(configuration_filepath, profiling=False, debug=False):
     logging.info('Done.')
     logging.info('Starting node processes.')
 
+    coordinator_arguments = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for coordinator in cfg.coordinators.itervalues()])
     for node_id, node in cfg.active_deployment.nodes.iteritems():
         log_filepath = 'var/log/node-%s.log' % node_id
         with open(log_filepath, 'wb') as logfile:
             logfile.truncate()
-        cmd = 'python bin/tako-node -id %s -cfg %s %s %s -l %s' % (node_id, configuration_filepath, profiling_cmd(node.id), debug_cmd, log_filepath)
+        # cmd = 'python bin/tako-node -id %s -cfg %s %s %s -l %s' % (node_id, configuration_filepath, profiling_cmd(node.id), debug_cmd, log_filepath)
+        cmd = 'python bin/tako-node -id %s %s %s %s -l %s' % (node_id, coordinator_arguments, profiling_cmd(node.id), debug_cmd, log_filepath)
         if args.skip and node_id in args.skip:
             logging.info('Skipped Node "%s". Command: %s', node_id, cmd)
         else:

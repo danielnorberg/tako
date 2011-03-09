@@ -20,4 +20,5 @@ home = parent(find_root('test'))
 data = os.path.join(home, 'var', 'data')
 log = os.path.join(home, 'var', 'log')
 
-sys.path.append(home)
+def setup():
+    sys.path.append(home)

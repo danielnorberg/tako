@@ -8,6 +8,8 @@ import logging
 import os
 
 import paths
+paths.setup()
+
 from utils import testcase
 from utils.timestamp import Timestamp
 from models import Coordinator, Deployment

@@ -31,7 +31,7 @@ def _main(args):
             # logging.critical('Failed to load configuration file.')
             exit(-1)
         if args.id not in config.active_deployment.nodes:
-            logging.critical('Configuration for Node (id = %s) not found in configuration', args.id)
+            logging.critical('Configuration for Node (id = %s) not found in configuration file', args.id)
             exit(-1)
 
     coordinators = []

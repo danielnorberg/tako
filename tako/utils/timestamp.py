@@ -14,7 +14,6 @@ class Timestamp(object):
     @classmethod
     def try_loads(self, s):
         """docstring for try_loads"""
-        # logging.debug('s: %s', s)
         try:
             return Timestamp.loads(s)
         except ValueError:

@@ -89,5 +89,6 @@ def main():
 
 if __name__ == '__main__':
     import paths
+    paths.setup()
     os.chdir(paths.home)
     main()

@@ -8,6 +8,7 @@ import random
 from syncless import coio
 
 import paths
+paths.setup()
 
 from socketless.service import Client
 from tako.nodeserver import PublicNodeServiceProtocol
