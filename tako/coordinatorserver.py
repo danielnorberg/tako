@@ -56,17 +56,19 @@ class CoordinatorServer(object):
         self.http_server.serve()
 
 def main():
-    debug.configure_logging('coordinatorserver')
-
     parser = argparse.ArgumentParser(description="Tako Coordinator")
     parser.add_argument('-id', '--id', help='Server id. Default = 1', default='c1')
     parser.add_argument('-cfg','--config', help='Config file.', default='test/local_cluster.yaml')
+    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
 
     try:
         args = parser.parse_args()
     except IOError, e:
         logging.error(e)
         exit(-1)
+
+    level = logging.DEBUG if args.debug else logging.INFO
+    debug.configure_logging('coordinatorserver', level)
 
     cfg = configuration.try_load_file(args.config)
 

@@ -10,14 +10,18 @@ import os
 import paths
 paths.setup()
 
+from utils import debug
 from utils import testcase
 from utils.timestamp import Timestamp
 from models import Coordinator, Deployment
 
 def try_load_specification(specification, timestamp=Timestamp.now()):
-    """docstring for try_load_specification"""
     try:
-        return Configuration(specification, timestamp)
+        logging.debug(specification)
+        configuration = Configuration(specification, timestamp)
+        logging.debug(configuration)
+        logging.debug(configuration.specification())
+        return configuration
     except ValidationError, e:
         logging.error('Configuration is not valid: %s', e)
         return None
@@ -31,7 +35,6 @@ def try_load_json(s, timestamp=Timestamp.now()):
     return try_load_specification(specification, timestamp)
 
 def try_load_file(filepath, timestamp=None):
-    """docstring for load"""
     try:
         if not timestamp:
             timestamp = Timestamp.from_seconds(os.path.getmtime(filepath))
@@ -49,7 +52,6 @@ def try_load_file(filepath, timestamp=None):
     return try_load_specification(specification, timestamp)
 
 def try_dump_file(filepath, configuration):
-    """docstring for try_dump_file"""
     logging.debug(filepath)
     try:
         dirpath = os.path.dirname(filepath)
@@ -66,7 +68,6 @@ def try_dump_file(filepath, configuration):
         return False
 
 def validate_specification(specification):
-    """docstring for validate_specification"""
     # TODO: Complete validation
     # TODO: Validate that node id's are not recycled
     try:
@@ -98,21 +99,17 @@ def validate_specification(specification):
         # raise ValidationError()
 
 class ValidationError(Exception):
-    """docstring for ValidationError"""
     def __init__(self, description=None):
         super(ValidationError, self).__init__()
         self.description = description
 
     def __str__(self):
-        """docstring for __str__"""
         return 'ValidationError(%s)' % (self.description or '')
 
     def __repr__(self):
-        """docstring for __repr__"""
         return str(self)
 
 class Configuration(object):
-    """docstring for Configuration"""
     def __init__(self, specification=None, timestamp=Timestamp.now()):
         super(Configuration, self).__init__()
         self.timestamp = timestamp
@@ -120,15 +117,12 @@ class Configuration(object):
             assert self.load(specification)
 
     def __repr__(self):
-        """docstring for __repr__"""
         return str(self)
 
     def __str__(self):
-        """docstring for fname"""
         return "Configuration(%s)" % self.specification()
 
     def load(self, specification):
-        """docstring for load"""
         validate_specification(specification)
         self.original_specification = specification
         self.deployments = dict((name, Deployment(name, deployment_specification)) for name, deployment_specification in specification.get('deployments', {}).iteritems())
@@ -142,7 +136,6 @@ class Configuration(object):
         return True
 
     def specification(self):
-        """docstring for yaml"""
         spec = {
                 'active_deployment': self.active_deployment_name,
                 'deployments': dict((deployment.name, deployment.specification()) for deployment in self.deployments.itervalues()),
@@ -155,8 +148,20 @@ class Configuration(object):
             spec['target_deployment'] = self.target_deployment_name
         return spec
 
+    def find_nodes_for_key(self, key):
+        # for bucket in self.active_deployment.buckets_for_key(key):
+        #     for node in bucket:
+        #         yield node
+        # if self.target_deployment:
+        #     for bucket in self.target_deployment.buckets_for_key(key):
+        #         for node in bucket:
+        #             yield node
+        nodes = dict([(node.id, node) for bucket in self.active_deployment.buckets_for_key(key) for node in bucket])
+        if self.target_deployment:
+            nodes.update(dict([(node.id, node) for bucket in self.target_deployment.buckets_for_key(key) for node in bucket]))
+        return nodes
+
     def find_neighbour_nodes_for_key(self, key, local_node):
-        """docstring for find_neighbour_nodes_for_key"""
         neighbour_nodes = dict([(node.id, node) for bucket in self.active_deployment.buckets_for_key(key) for node in bucket])
         if self.target_deployment:
             neighbour_nodes.update(dict([(node.id, node) for bucket in self.target_deployment.buckets_for_key(key) for node in bucket]))
@@ -171,6 +176,12 @@ class Configuration(object):
         neighbour_nodes = dict((node.id, node) for bucket in neighbour_buckets for node in bucket)
         neighbour_nodes.pop(local_node.id, None)
         return neighbour_nodes
+
+    def all_nodes(self):
+        nodes = dict((node.id, node) for bucket in self.active_deployment.buckets.itervalues() for node in bucket)
+        if self.target_deployment:
+            nodes.update([(node.id, node) for bucket in self.target_deployment.buckets.itervalues() for node in bucket])
+        return nodes
 
 class TestConfiguration(testcase.TestCase):
     def testParsing(self):

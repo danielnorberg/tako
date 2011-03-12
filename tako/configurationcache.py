@@ -19,9 +19,16 @@ class ConfigurationCache(object):
         self.directory = directory
         self.name = name
 
+    def filename_matches(self, filename):
+        name, ext = os.path.splitext(filename)
+        if ext != '.yaml':
+            return False
+        creator_name, timestamp_string = name.split('.')
+        return creator_name == self.name
+
     def list_files(self):
         try:
-            return sorted([filename for filename in os.listdir(self.directory) if os.path.splitext(filename)[1] == '.yaml' and filename.startswith(self.name)])
+            return sorted([filename for filename in os.listdir(self.directory) if self.filename_matches(filename)])
         except OSError, e:
             logging.debug(e)
             return []
@@ -41,11 +48,11 @@ class ConfigurationCache(object):
 
     def get_configuration(self):
         filenames = self.list_files()
+        logging.debug('filenames = %s', filenames)
         filenames.reverse()
         for filename in filenames:
             name, ext = os.path.splitext(filename)
-            name_parts = name.split('.')
-            timestamp_string = name_parts[-1]
+            creator_name, timestamp_string = name.split('.')
             timestamp = Timestamp.loads(timestamp_string)
             filepath = os.path.join(self.directory, filename)
             persisted_configuration = configuration.try_load_file(filepath, timestamp)

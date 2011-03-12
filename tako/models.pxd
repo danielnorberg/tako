@@ -6,8 +6,8 @@ cdef class Node(object):
     cdef public str id
     cdef public str bucket_id
     cdef public str address
-    cdef public unsigned int http_port
-    cdef public unsigned int raw_port
+    cdef public int http_port
+    cdef public int raw_port
     cpdef raw_address(self)
     cpdef store_url(self)
     cpdef stat_url(self)
@@ -30,5 +30,5 @@ cdef class Deployment(object):
 cdef class Coordinator(object):
     cdef public str id
     cdef public str address
-    cdef public unsigned int port
+    cdef public int port
     cpdef configuration_url(self)

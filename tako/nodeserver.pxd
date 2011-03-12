@@ -18,6 +18,7 @@ cdef class NodeServer(object):
     cdef public Store store
     cdef dict node_clients
     cdef tuple http_handlers
+    cdef object coordinator_client
     cdef Configuration configuration
     cdef Deployment deployment
     cdef bint read_repair_enabled
@@ -28,17 +29,18 @@ cdef class NodeServer(object):
     cdef list coordinators
     cdef object internal_multi_client
 
-    cdef evaluate_new_configuration(self, new_configuration)
-    cdef set_configuration(self, new_configuration)
-    cdef initialize_node_client_pool(self)
-    cpdef clients_for_nodes(self, nodes)
+    # cdef evaluate_new_configuration(self, new_configuration)
+    # cdef set_configuration(self, new_configuration)
+    # cdef initialize_node_client_pool(self)
+    cdef clients_for_nodes(self, nodes)
+
     cpdef serve(self)
 
-    cpdef fetch_value(self, key, node)
-    cpdef fetch_timestamps(self, key)
-    cpdef get_timestamp(self, env)
-    cdef propagate(self, str key, object timestamped_value, list target_nodes)
-    cdef read_repair(self, str key, object timestamped_value)
+    cdef fetch_value(self, key, node)
+    cdef fetch_timestamps(self, key)
+    cdef get_timestamp(self, env)
+    cdef propagate(self, object key, object timestamped_value, object target_nodes)
+    cdef read_repair(self, object key, object timestamped_value)
 
     cdef quote(self, key)
     cdef unquote(self, path)

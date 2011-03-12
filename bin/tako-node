@@ -15,7 +15,7 @@ from tako.utils import debug
 from tako.utils import convert
 from tako import configuration
 from tako.configuration import Coordinator
-from tako.nodeserver import NodeServer, NoConfigurationException
+from tako.nodeserver import NodeServer
 
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
@@ -28,11 +28,11 @@ def _main(args):
     if args.config:
         config = configuration.try_load_file(args.config)
         if not config:
-            # logging.critical('Failed to load configuration file.')
-            exit(-1)
+            logging.critical('Failed to load configuration file "%s"', args.config)
+            exit(1)
         if args.id not in config.active_deployment.nodes:
             logging.critical('Configuration for Node (id = %s) not found in configuration file', args.id)
-            exit(-1)
+            exit(1)
 
     coordinators = []
     if args.coordinator:
@@ -40,19 +40,18 @@ def _main(args):
             port = convert.try_int(port_string)
             if not port:
                 logging.critical("Invalid port '%s'", port_string)
-                exit(-1)
+                exit(1)
             coordinators.append(Coordinator(None, address, port))
     try:
         server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinators=coordinators)
         server.serve()
         while True:
             coio.sleep(1)
-    except NoConfigurationException:
-        pass
     except KeyboardInterrupt:
-        pass
-
-    logging.info('Exiting...')
+        logging.info('Keyboard interrupt received. Exiting...')
+    except Exception, e:
+        logging.critical(e)
+        raise
 
 def main():
     parser = argparse.ArgumentParser(description="Tako Node")

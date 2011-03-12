@@ -9,7 +9,7 @@ cdef class Store(object):
     cpdef open(self)
     cpdef close(self)
     cpdef _flush(self)
-    cpdef set(self, str key, str value, timestamp=*)
+    cpdef set(self, object key, object value, timestamp=*)
     cpdef set_timestamped(self, key, timestamped_value)
     cpdef unpack_timestamped_data(self, data)
     cpdef pack_timestamped_data(self, data, timestamp)

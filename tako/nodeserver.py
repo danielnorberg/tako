@@ -83,9 +83,9 @@ class NodeServer(object):
 
     def serve(self):
         self.coordinator_client.start()
-        logging.info('Checking Configuration.')
+        logging.info('Checking configuration.')
         if not self.configuration and not self.coordinators:
-            logging.critical('Missing Configuration!')
+            logging.error('No configuration available and no coordinators configured.')
             raise NoConfigurationException()
         while not self.configuration:
             debug.log('Waiting for configuration.')
