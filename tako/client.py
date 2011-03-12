@@ -1,5 +1,6 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 import struct
+import logging
 
 import paths
 paths.setup()
@@ -92,7 +93,7 @@ class Client(object):
     def set_value(self, key, value, timestamp):
         node_client = self.client_for_key(key)
         if not node_client:
-            raise Exception('No node available for key: %s', key)
+            raise Exception('No node available for key: "%s"' % key)
         node_client.set(key, timestamped_value(timestamp, value))
         # node_client.set(timestamp, key, value)
 

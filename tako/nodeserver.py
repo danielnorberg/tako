@@ -130,9 +130,21 @@ class NodeServer(object):
 
     def public_set(self, callback, key, timestamped_value):
         debug.log("key: %s", key)
-        self.store.set_timestamped(key, timestamped_value)
-        target_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
-        self.propagate(key, timestamped_value, target_nodes)
+        target_nodes = self.configuration.find_nodes_for_key(key)
+        local_node = target_nodes.pop(self.node.id, None)
+        if local_node:
+            newer = True
+            local_timestamped_value = self.store.get_timestamped(key)
+            if local_timestamped_value:
+                local_timestamp = self.store.read_timestamp(local_timestamped_value)
+                timestamp = self.store.read_timestamp(timestamped_value)
+                if local_timestamp > timestamp:
+                    newer = False
+            if newer:
+                self.store.set_timestamped(key, timestamped_value)
+                self.propagate(key, timestamped_value, target_nodes)
+        else:
+            logging.warning('%s not in %s', self.node.id, target_nodes)
         callback()
 
     def public_stat(self, callback, key):

@@ -149,24 +149,10 @@ class Configuration(object):
         return spec
 
     def find_nodes_for_key(self, key):
-        # for bucket in self.active_deployment.buckets_for_key(key):
-        #     for node in bucket:
-        #         yield node
-        # if self.target_deployment:
-        #     for bucket in self.target_deployment.buckets_for_key(key):
-        #         for node in bucket:
-        #             yield node
         nodes = dict([(node.id, node) for bucket in self.active_deployment.buckets_for_key(key) for node in bucket])
         if self.target_deployment:
             nodes.update(dict([(node.id, node) for bucket in self.target_deployment.buckets_for_key(key) for node in bucket]))
         return nodes
-
-    def find_neighbour_nodes_for_key(self, key, local_node):
-        neighbour_nodes = dict([(node.id, node) for bucket in self.active_deployment.buckets_for_key(key) for node in bucket])
-        if self.target_deployment:
-            neighbour_nodes.update(dict([(node.id, node) for bucket in self.target_deployment.buckets_for_key(key) for node in bucket]))
-        neighbour_nodes.pop(local_node.id, None)
-        return neighbour_nodes
 
     def find_neighbour_nodes_for_node(self, local_node):
         node_bucket = self.active_deployment.buckets[local_node.bucket_id]
@@ -197,7 +183,6 @@ class TestConfiguration(testcase.TestCase):
                 self.assertEqual(manually_loaded_configuration.specification(), loaded_specification)
                 self.assertEqual(manually_loaded_configuration.specification(), helper_loaded_configuration.specification())
                 self.assertEqual(manually_loaded_configuration.timestamp, helper_loaded_configuration.timestamp)
-
 
 if __name__ == '__main__':
     import unittest
