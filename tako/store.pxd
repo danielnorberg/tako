@@ -5,6 +5,7 @@ cdef class Store(object):
     cdef str filepath
     cdef object db
     cdef object flusher
+    cdef object commit_interval
 
     cpdef open(self)
     cpdef close(self)

@@ -3,7 +3,7 @@
 import os, logging
 
 from utils import testcase
-from utils.timestamp import Timestamp
+from utils import timestamper
 import configuration
 
 import paths
@@ -53,7 +53,7 @@ class ConfigurationCache(object):
         for filename in filenames:
             name, ext = os.path.splitext(filename)
             creator_name, timestamp_string = name.split('.')
-            timestamp = Timestamp.loads(timestamp_string)
+            timestamp = timestamper.loads(timestamp_string)
             filepath = os.path.join(self.directory, filename)
             persisted_configuration = configuration.try_load_file(filepath, timestamp)
             if persisted_configuration:
@@ -78,7 +78,7 @@ class TestConfiguration(testcase.TestCase):
             filepath = paths.path(f)
             cfg = configuration.try_load_file(filepath)
             for i in xrange(0, 100):
-                cfg.timestamp = Timestamp.now()
+                cfg.timestamp = timestamper.now()
                 cache.cache_configuration(cfg)
                 read_configuration = cache.get_configuration()
                 self.assertEqual(read_configuration.specification(), cfg.specification())

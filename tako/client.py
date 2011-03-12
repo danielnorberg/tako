@@ -12,8 +12,8 @@ from configurationcache import ConfigurationCache
 from protocols import PublicNodeServiceProtocol
 from models import Coordinator
 
-# def timestamped_value(timestamp, value):
-#     return struct.pack('Q', timestamp) + value
+def timestamped_value(timestamp, value):
+    return struct.pack('Q', timestamp) + value
 
 class Client(object):
     def __init__(self, coordinator_addresses=[], explicit_configuration=None, configuration_cache_directory=None):
@@ -93,8 +93,8 @@ class Client(object):
         node_client = self.client_for_key(key)
         if not node_client:
             raise Exception('No node available for key: %s', key)
-        # node_client.set(key, timestamped_value(timestamp, value))
-        node_client.set(timestamp, key, value)
+        node_client.set(key, timestamped_value(timestamp, value))
+        # node_client.set(timestamp, key, value)
 
     def get_value(self, key):
         """docstring for get"""

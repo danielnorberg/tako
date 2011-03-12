@@ -9,7 +9,7 @@ import configuration
 import logging
 
 from configuration import Configuration
-from utils.timestamp import Timestamp
+from utils import timestamper
 
 class BadRequest(object):
     """docstring for BadRequest"""
@@ -31,7 +31,7 @@ class CoordinatorServer(object):
         self.id = coordinator_id
         self.original_configuration = configuration
         self.configuration = Configuration(configuration.specification())
-        self.configuration.timestamp = Timestamp.from_seconds(os.stat(configuration_filepath).st_mtime)
+        self.configuration.timestamp = timestamper.from_seconds(os.stat(configuration_filepath).st_mtime)
         logging.debug('timestamp: %s', self.configuration.timestamp)
         self.coordinator = configuration.coordinators[self.id]
         self.configuration_filepath = configuration_filepath

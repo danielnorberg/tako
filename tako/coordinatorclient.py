@@ -9,7 +9,7 @@ from syncless import patch
 patch.patch_socket()
 
 from utils import testcase
-from utils.timestamp import Timestamp
+from utils import timestamper
 from utils import http
 
 import configuration
@@ -42,7 +42,7 @@ class CoordinatorClient(object):
         body, info = http.fetch(url)
         if body:
             # logging.debug('Got specification: %s', body)
-            new_timestamp = Timestamp.try_loads(info.get('x-timestamp', None))
+            new_timestamp = timestamper.try_loads(info.get('x-timestamp', None))
             if new_timestamp:
                 new_configuration = configuration.try_load_json(body, timestamp=new_timestamp)
                 return (new_configuration, coordinator)
@@ -89,7 +89,7 @@ class TestCoordinatorClient(testcase.TestCase):
                 break
         assert cfg.specification() == self.new_configuration.specification()
         print 'Fetched configuration: ', self.new_configuration
-        print 'Timestamp', self.new_timestamp
+        print 'Timestamp: ', self.new_timestamp
         coordinator_server_task.kill()
 
 

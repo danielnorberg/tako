@@ -11,7 +11,7 @@ from socketless import service
 import paths
 paths.setup()
 
-from utils.timestamp import Timestamp
+from utils import timestamper
 from utils import debug
 
 import httpserver
@@ -147,7 +147,7 @@ class NodeServer(object):
             value, timestamp = self.store.unpack_timestamped_data(timestamped_value)
             start_response('200 OK', [
                     ('Content-Type', 'application/octet-stream'),
-                    ('Last-Modified', email.utils.formatdate(timestamp.to_seconds())),
+                    ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp))),
                     ('X-TimeStamp', str(timestamp)),
             ])
             return [value]
@@ -181,7 +181,7 @@ class NodeServer(object):
 
     def get_timestamp(self, env):
         try:
-            return Timestamp.try_loads(env.get('HTTP_X_TIMESTAMP', None)) or Timestamp.now()
+            return timestamper.try_loads(env.get('HTTP_X_TIMESTAMP', None)) or timestamper.now()
         except ValueError:
             raise httpserver.BadRequest()
 

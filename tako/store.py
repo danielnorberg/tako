@@ -3,60 +3,54 @@
 import tc
 import unittest
 import logging
-from utils import testcase
 import struct
 
 from syncless import coio
 
-from utils.timestamp import Timestamp
+import utils
 from utils import debug
+from utils import testcase
+from utils import timestamper
 
 BUFFER_THRESHOLD = 4096
 
 class Store(object):
-    """docstring for Store"""
-    def __init__(self, filepath):
+    def __init__(self, filepath, commit_interval=0.5):
         self.operation_counter = 0
         super(Store, self).__init__()
         debug.log('filepath: %s', filepath)
         self.filepath = filepath
         self.db = tc.BDB()
         self.flusher = None
+        self.commit_interval = commit_interval
 
     def open(self):
-        """docstring for open"""
         self.db.open(self.filepath, tc.BDBOWRITER | tc.BDBOCREAT)
         self.begin()
         self.flusher = coio.stackless.tasklet(self._flush)()
 
     def close(self):
-        """docstring for close"""
         self.flusher.kill()
         self.commit()
         self.db.close()
 
     def _flush(self):
         while True:
-            # logging.info('Committing %d operations', self.operation_counter)
+            debug.log('Committing %d operations', self.operation_counter)
             self.commit()
             self.operation_counter = 0
             self.begin()
-            coio.sleep(0.5)
+            coio.sleep(self.commit_interval)
 
     def set(self, key, value, timestamp=None):
-        """docstring for set"""
         self.operation_counter += 1
-        timestamp = timestamp or Timestamp.now()
-        #debug.log('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
-        timestamp_data = struct.pack('Q', timestamp.microseconds)
-        self.db.put(key, timestamp_data)
+        timestamp = timestamp or timestamper.now()
+        self.db.put(key, timestamper.pack(timestamp))
         self.db.putcat(key, value)
         return timestamp
 
     def set_timestamped(self, key, timestamped_value):
         self.operation_counter += 1
-        """docstring for set_timestamped"""
-        # debug.log('key: %s, timestamped_value: %s', key, timestamped_value)
         self.db.put(key, timestamped_value)
 
     def unpack_timestamped_data(self, data):
@@ -68,43 +62,30 @@ class Store(object):
         return value, timestamp
 
     def pack_timestamped_data(self, data, timestamp):
-        #debug.log('data: %s, timestamp: %s', data, timestamp)
-        return ''.join((struct.pack('!Q', timestamp.microseconds), data))
+        return timestamper.pack(timestamp) + data
 
     def read_timestamp(self, data):
-        #debug.log('data: %s', data)
-        return Timestamp(struct.unpack_from('!Q', data)[0])
+        return timestamper.unpack(data)
 
     def get_timestamped(self, key):
-        """docstring for get_timestamped"""
-        #debug.log('%s', repr(key))
         try:
             return self.db.get(key)
         except:
             pass
-        #debug.log('key: %s, value: None, timestamp: None', repr(key))
         return None
 
     def get_timestamp(self, key):
-        """docstring for get_timestamp"""
         return self.get(key)[1]
 
     def get(self, key):
-        """docstring for get"""
-        # #debug.log('%s', repr(key))
         value = None
         timestamp = None
-        # self.begin()
         try:
             data = self.db.get(key)
             value, timestamp = self.unpack_timestamped_data(data)
-            # #debug.log('key: %s, value: %s, timestamp: %s', repr(key), repr(value[0:16]), timestamp)
             return (value, timestamp)
         except:
             pass
-        # finally:
-        #       self.commit()
-        # #debug.log('key: %s, value: None, timestamp: None', repr(key))
         return (None, None)
 
     def _jump(self, cur, start):
@@ -177,7 +158,7 @@ class StoreTest(testcase.TestCase):
         store.open()
         self.assertEqual(store.get('foo'), (None, None))
         store.begin()
-        timestamp = Timestamp.now()
+        timestamp = timestamper.now()
         store.set('bar', 'bar', timestamp)
         self.assertEqual(store.get('bar'), ('bar', timestamp))
         store.commit()

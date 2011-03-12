@@ -12,10 +12,10 @@ paths.setup()
 
 from utils import debug
 from utils import testcase
-from utils.timestamp import Timestamp
+from utils import timestamper
 from models import Coordinator, Deployment
 
-def try_load_specification(specification, timestamp=Timestamp.now()):
+def try_load_specification(specification, timestamp=timestamper.now()):
     try:
         logging.debug(specification)
         configuration = Configuration(specification, timestamp)
@@ -26,7 +26,7 @@ def try_load_specification(specification, timestamp=Timestamp.now()):
         logging.error('Configuration is not valid: %s', e)
         return None
 
-def try_load_json(s, timestamp=Timestamp.now()):
+def try_load_json(s, timestamp=timestamper.now()):
     try:
         specification = json.loads(s)
     except Exception, e:
@@ -37,7 +37,7 @@ def try_load_json(s, timestamp=Timestamp.now()):
 def try_load_file(filepath, timestamp=None):
     try:
         if not timestamp:
-            timestamp = Timestamp.from_seconds(os.path.getmtime(filepath))
+            timestamp = timestamper.from_seconds(os.path.getmtime(filepath))
         with open(filepath) as f:
             specification = yaml.load(f)
     except OSError, e:
@@ -110,7 +110,7 @@ class ValidationError(Exception):
         return str(self)
 
 class Configuration(object):
-    def __init__(self, specification=None, timestamp=Timestamp.now()):
+    def __init__(self, specification=None, timestamp=timestamper.now()):
         super(Configuration, self).__init__()
         self.timestamp = timestamp
         if specification:
@@ -191,7 +191,7 @@ class TestConfiguration(testcase.TestCase):
             filepath = paths.path(f)
             with open(filepath) as specfile:
                 loaded_specification = yaml.load(specfile)
-                timestamp = Timestamp.from_seconds(os.path.getmtime(filepath))
+                timestamp = timestamper.from_seconds(os.path.getmtime(filepath))
                 helper_loaded_configuration = try_load_file(filepath)
                 manually_loaded_configuration = Configuration(loaded_specification, timestamp)
                 self.assertEqual(manually_loaded_configuration.specification(), loaded_specification)
