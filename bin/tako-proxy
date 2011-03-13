@@ -12,25 +12,22 @@ home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os
 sys.path.insert(0, home)
 
 from tako import configuration
-from tako.nodeserver import NodeServer
+from tako.proxyserver import ProxyServer
 from tako.utils import debug
 from tako.utils import convert
 
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
-    debug.configure_logging('nodeserver', level, args.log_file)
+    debug.configure_logging('proxyserver', level, args.log_file)
 
-    logging.info('Tako Node Starting')
-    logging.info('Node id: %s', args.id)
+    logging.info('Tako Proxy Starting')
+    logging.info('Proxy id: %s', args.id)
 
     config = None
     if args.config:
         config = configuration.try_load_file(args.config)
         if not config:
             logging.critical('Failed to load configuration file "%s"', args.config)
-            exit(1)
-        if args.id not in config.active_deployment.nodes:
-            logging.critical('Configuration for Node (id = %s) not found in configuration file', args.id)
             exit(1)
 
     coordinators = []
@@ -42,7 +39,7 @@ def _main(args):
                 exit(1)
             coordinators.append((address, port))
     try:
-        server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinator_addresses=coordinators)
+        server = ProxyServer(args.id, ('localhost', args.port), explicit_configuration=config, coordinator_addresses=coordinators)
         server.serve()
         while True:
             coio.sleep(1)
@@ -53,13 +50,13 @@ def _main(args):
         raise
 
 def main():
-    parser = argparse.ArgumentParser(description="Tako Node")
-    parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
+    parser = argparse.ArgumentParser(description="Tako Proxy")
+    parser.add_argument('-p', '--port', help='port. Default = 8080', default=8080, type=int)
+    parser.add_argument('-id', '--id', help='Proxy id. Default = p1', default='p1')
     parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
-    parser.add_argument('-f','--file', help='Database file.')
     parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
-    parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
+    parser.add_argument('-prof', '--profiling-file', help='Enable performance profiling.')
     parser.add_argument('-l', '--log-file', help='Log file.')
 
     args = parser.parse_args()

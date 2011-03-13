@@ -22,40 +22,26 @@ from store import Store
 class NoConfigurationException(BaseException):
     pass
 
-class InternalNodeService(service.Service):
-    def __init__(self, node_server):
-        super(InternalNodeService, self).__init__(InternalNodeServiceProtocol(),
-            get=node_server.internal_get,
-            set=node_server.internal_set,
-            stat=node_server.internal_stat,
-        )
-
-class PublicNodeService(service.Service):
-    def __init__(self, node_server):
-        super(PublicNodeService, self).__init__(PublicNodeServiceProtocol(),
-            get=node_server.public_get,
-            set=node_server.public_set,
-            stat=node_server.public_stat,
-        )
-
 class NodeServer(object):
-    def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinators=[], var_directory='var'):
+    def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinator_addresses=[], var_directory='var'):
         super(NodeServer, self).__init__()
-        debug.log('node_id = %s, store_file = %s, explicit_configuration = %s, coordinators = %s, var_directory = %s', node_id, store_file, explicit_configuration, coordinators, var_directory)
+        debug.log('node_id = %s, store_file = %s, explicit_configuration = %s, coordinators = %s, var_directory = %s',
+                  node_id, store_file, explicit_configuration, coordinator_addresses, var_directory)
         self.id = node_id
-        var_directory = os.path.join(paths.home, var_directory)
-        configuration_directory = os.path.join(var_directory, 'etc')
-        self.__store = Store(store_file or os.path.join(var_directory, 'data', '%s.tcb' % self.id))
+        var_directory = paths.path(var_directory)
+        store_file = store_file or os.path.join(var_directory, 'data', '%s.tcb' % self.id)
+        self.__store = Store(store_file)
         self.__store.open()
         self.__node_clients = {}
         self.__internal_cluster_client = service.MulticastClient(InternalNodeServiceProtocol())
         self.__http_handlers = (
-                ('/v/', {'GET':self.__store_GET, 'POST':self.__store_POST}),
-                # ('/i/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
-                # ('/s/', {'GET':self.stat_GET}),
+                ('/values/', {'GET':self.__store_GET, 'POST':self.__store_POST}),
+                # ('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
+                # ('/stat/', {'GET':self.stat_GET}),
         )
-        self.__configuration_controller = ConfigurationController('nodeserver-%s' % self.id, coordinators, explicit_configuration,
-                                                                configuration_directory, self.__update_configuration)
+        configuration_directory = os.path.join(var_directory, 'etc')
+        self.__configuration_controller = ConfigurationController('nodeserver-%s' % self.id, coordinator_addresses, explicit_configuration,
+                                                                  configuration_directory, self.__update_configuration)
         logging.debug('self.__configuration_controller == %s', self.__configuration_controller)
 
     def __initialize_node_client_pool(self):
@@ -123,7 +109,8 @@ class NodeServer(object):
         debug.log('key: %s, timestamp: %s', key, timestamp)
         remote_timestamps = self.__fetch_timestamps(key)
         debug.log('remote: %s', remote_timestamps)
-        newer = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps if remote_timestamp and remote_timestamp > timestamp]
+        newer = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps
+                 if remote_timestamp and remote_timestamp > timestamp]
 
         debug.log('newer: %s', newer)
         if newer:
@@ -135,7 +122,8 @@ class NodeServer(object):
                 timestamp = latest_timestamp
                 self.__store.set(key, timestamp, value)
 
-        older = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps if remote_timestamp and remote_timestamp < timestamp]
+        older = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps
+                 if remote_timestamp and remote_timestamp < timestamp]
         debug.log('older: %s', older)
         if older:
             older_node_ids = [client.tag for (client, remote_timestamp) in older]
@@ -187,17 +175,17 @@ class NodeServer(object):
     def __public_stat(self, callback, key):
         def __get_callback(timestamp, value):
             callback(timestamp)
-        self.public_get(__get_callback, key)
+        self.__public_get(__get_callback, key)
 
     def __store_GET(self, start_response, path, body, env):
         debug.log('path: %s', path)
         key = self.__unquote(path)
-        timestamp, value = self.public_get(key)
+        timestamp, value = self.__public_get(key)
         if timestamp and value:
             start_response('200 OK', [
                     ('Content-Type', 'application/octet-stream'),
                     ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp))),
-                    ('X-TimeStamp', str(timestamp)),
+                    ('X-Timestamp', str(timestamp)),
             ])
             return [value]
         else:
@@ -212,7 +200,7 @@ class NodeServer(object):
         self.public_set(key, timestamp, value)
         start_response('200 OK', [
                 ('Content-Type', 'application/octet-stream'),
-                ('X-TimeStamp', str(timestamp)),
+                ('X-Timestamp', str(timestamp)),
         ])
         return ['']
 

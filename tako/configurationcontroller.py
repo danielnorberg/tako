@@ -12,17 +12,20 @@ from models import Coordinator
 
 class ConfigurationController(object):
     """docstring for ConfigurationController"""
-    def __init__(self, name, coordinator_addresses, explicit_configuration, configuration_cache_directory, update_configuration_callback):
+    def __init__(self, name, coordinator_addresses, explicit_configuration, configuration_cache_directory,
+                 update_configuration_callback, update_interval=5*60):
         super(ConfigurationController, self).__init__()
         self.name = name
         coordinators = [Coordinator(None, address, port) for address, port in coordinator_addresses]
-        self.__coordinator_client = CoordinatorClient(coordinators=coordinators, callbacks=[self.__evaluate_new_configuration], interval=30)
+        self.__coordinator_client = CoordinatorClient(coordinators=coordinators,
+                                                      callbacks=[self.__evaluate_new_configuration],
+                                                      interval=update_interval)
         self.__configuration_cache = None
         self.__explicit_configuration = explicit_configuration
         self.__update_configuration_callback = None
 
         if configuration_cache_directory:
-            debug.log('Persistent configuration cache enabled. (%s)', configuration_cache_directory)
+            debug.log('Persistent configuration cache enabled.')
             self.__configuration_cache = ConfigurationCache(configuration_cache_directory, self.name)
         else:
             debug.log('No configuration cache directory., persistent configuration cache disabled.')

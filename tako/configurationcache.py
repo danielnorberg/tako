@@ -1,6 +1,7 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
-import os, logging
+import logging
+import os
 
 from utils import testcase
 from utils import timestamper
@@ -16,8 +17,9 @@ class ConfigurationCache(object):
     """docstring for ConfigurationCache"""
     def __init__(self, directory, name):
         super(ConfigurationCache, self).__init__()
-        self.directory = directory
+        self.directory = os.path.abspath(directory)
         self.name = name
+        logging.debug('name = "%s", directory = "%s"', self.name, self.directory)
 
     def filename_matches(self, filename):
         name, ext = os.path.splitext(filename)

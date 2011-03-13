@@ -43,6 +43,8 @@ class Client(object):
 
     def __client_for_key(self, key):
         # TODO: Distribute node selection evenly?
+        if not self.__configuration:
+            return None
         nodes = self.__configuration.find_nodes_for_key(key)
         for node in nodes.itervalues():
             client = self.__node_clients[node.id]
