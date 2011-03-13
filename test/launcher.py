@@ -39,6 +39,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
                          coordinator.id, coordinator.address, coordinator.port, proc.pid)
             logging.debug('command: %s', cmd)
 
+        time.sleep(1)
+
         logging.info('Done.')
         logging.info('Starting node processes.')
 
