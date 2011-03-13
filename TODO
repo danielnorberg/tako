@@ -1,2 +1,4 @@
 * log rotation
 * daemonization: http://pypi.python.org/pypi/python-daemon/
+* fetch configuration from any http url
+* put an epoch counter in configuration instead of using mtime as a timestamp

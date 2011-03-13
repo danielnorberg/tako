@@ -5,6 +5,7 @@ import argparse
 import logging
 import os
 import sys
+import signal
 
 home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
 sys.path.insert(0, home)
@@ -29,19 +30,33 @@ def main():
     level = logging.DEBUG if args.debug else logging.INFO
     debug.configure_logging('coordinatorserver', level, args.log_file)
 
-    cfg = configuration.try_load_file(args.config)
-
+    cfgpath = os.path.abspath(args.config)
+    cfg = configuration.try_load_file(cfgpath)
     if not cfg:
         logging.error('Failed to load configuration.')
         exit(-1)
 
-    logging.info('Tako Coordinator Starting')
+    coordinator = cfg.coordinators.get(args.id, None)
+    if not coordinator:
+        logging.error('Coordinator with id "%s" not found in configuration.', args.id)
+        exit(-1)
+
+    logging.info('Tako Coordinator starting')
     logging.info('Coordinator id: %s', args.id)
-    logging.info('Config file: %s', args.config)
-    logging.info('Serving up %s on port %d', args.config, cfg.coordinators[args.id].port)
+    logging.info('Serving up "%s" at %s:%d', cfgpath, coordinator.address, coordinator.port)
+
+    server = CoordinatorServer(args.id, cfgpath)
+
+    def signal_handler(signum, frame):
+        logging.info('Received SIGUSR1. Reloading configuration.')
+        try:
+            server.reload_configuration()
+            logging.info('Successfully reloaded configuration.')
+        except Exception, e:
+            logging.exception(e)
+    signal.signal(signal.SIGUSR1, signal_handler)
 
     try:
-        server = CoordinatorServer(args.id, cfg, args.config)
         server.serve()
     except KeyboardInterrupt:
         pass

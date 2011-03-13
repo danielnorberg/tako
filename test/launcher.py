@@ -17,8 +17,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
     os.chdir(paths.home)
     debug_arg = '-d' if debug else ''
-    absolute_configuration_filepath = paths.path(configuration_filepath)
-    cfg = Configuration(yaml.load(open(absolute_configuration_filepath)))
+    cfg = Configuration(yaml.load(open(configuration_filepath)))
 
     logging.info('Starting coordinator processes.')
 
@@ -26,6 +25,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
     try:
         for coordinator in cfg.coordinators.itervalues():
             log_filepath = 'var/log/coordinator-%s.log' % coordinator.id
+            with open(log_filepath, 'wb') as logfile:
+                logfile.truncate()
             cmd = 'python bin/tako-coordinator -id %(id)s -cfg %(cfg)s -l %(logfile)s %(debug)s' % {
                 'id':coordinator.id,
                 'cfg':configuration_filepath,
@@ -34,7 +35,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
             }
             proc = subprocess.Popen(cmd, shell=True)
             processes.append(proc)
-            logging.info('Launched Coordinator "%s" (pid: %d)', coordinator.id, proc.pid)
+            logging.info('Launched Coordinator "%s" (%s:%s) (pid: %d)',
+                         coordinator.id, coordinator.address, coordinator.port, proc.pid)
             logging.debug('command: %s', cmd)
 
         logging.info('Done.')
@@ -42,7 +44,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
         node_profiling_arg = lambda nodeid: '-p nodeserver-%s.prof' % nodeid if profiling else ''
         cfg_arg = '' if cfg.coordinators else '-cfg %s' % configuration_filepath
-        coordinator_arguments = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for coordinator in cfg.coordinators.itervalues()])
+        coordinator_arguments = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for
+                                        coordinator in cfg.coordinators.itervalues()])
         nodes = dict(cfg.active_deployment.nodes)
         if cfg.target_deployment:
             nodes.update(cfg.target_deployment.nodes)
@@ -105,7 +108,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Launcher")
-    parser.add_argument('-c', '--configuration', help='Configuration file.', default='test/local_cluster.yaml')
+    parser.add_argument('-c', '--configuration', help='Configuration file.', default='current_configuration.yaml')
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-s', '--skip', help='Skip node.', type=str, nargs='+')
     parser.add_argument('-p', '--proxy', help='Proxy Server (address port)', nargs=2, action='append')
@@ -115,4 +118,5 @@ if __name__ == '__main__':
     logging_level = logging.DEBUG if args.debug else logging.INFO
     debug.configure_logging('Tako Node', logging_level)
 
-    launch(args.configuration, args.profiling, args.debug, args.proxy or [])
+    configuration_filepath = os.path.abspath(args.configuration)
+    launch(configuration_filepath, args.profiling, args.debug, args.proxy or [])
