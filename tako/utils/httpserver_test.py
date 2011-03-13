@@ -10,8 +10,7 @@ from syncless import patch
 patch.patch_socket()
 
 from httpserver import HttpServer
-
-from utils.testcase import TestCase
+from testcase import TestCase
 
 
 class TestHttpServer(TestCase):

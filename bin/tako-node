@@ -11,11 +11,10 @@ from syncless import coio
 home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
 sys.path.insert(0, home)
 
+from tako import configuration
+from tako.nodeserver import NodeServer
 from tako.utils import debug
 from tako.utils import convert
-from tako import configuration
-from tako.configuration import Coordinator
-from tako.nodeserver import NodeServer
 
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
@@ -41,7 +40,7 @@ def _main(args):
             if not port:
                 logging.critical("Invalid port '%s'", port_string)
                 exit(1)
-            coordinators.append(Coordinator(None, address, port))
+            coordinators.append((address, port))
     try:
         server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinators=coordinators)
         server.serve()
@@ -50,7 +49,7 @@ def _main(args):
     except KeyboardInterrupt:
         logging.info('Keyboard interrupt received. Exiting...')
     except Exception, e:
-        logging.critical(e)
+        logging.exception(e)
         raise
 
 def main():

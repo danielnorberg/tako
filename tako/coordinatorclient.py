@@ -31,6 +31,11 @@ class CoordinatorClient(object):
     def start(self):
         self.configuration_fetcher = coio.stackless.tasklet(self.__fetch_configurations)()
 
+    def stop(self):
+        if self.configuration_fetcher:
+            self.configuration_fetcher.kill()
+            self.configuration_fetcher = None
+
     def __notify(self):
         logging.debug('configuration: %s', self.configuration)
         for f in self.callbacks:

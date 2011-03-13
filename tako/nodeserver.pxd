@@ -1,9 +1,9 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
 from models cimport Deployment, Node
-from store cimport Store
 from configuration cimport Configuration
-from httpserver cimport HttpServer
+from store cimport Store
+from tako.utils.httpserver cimport HttpServer
 
 cdef class NodeServer(object):
     cdef str SET_VALUE

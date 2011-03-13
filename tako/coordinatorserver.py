@@ -1,15 +1,15 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
 import argparse
-from utils import debug
-import os
-import httpserver
-import simplejson as json
-import configuration
 import logging
+import os
+import simplejson as json
 
+import configuration
 from configuration import Configuration
+from utils import debug
 from utils import timestamper
+from utils import httpserver
 
 class BadRequest(object):
     """docstring for BadRequest"""
@@ -35,7 +35,7 @@ class CoordinatorServer(object):
         logging.debug('timestamp: %s', self.configuration.timestamp)
         self.coordinator = configuration.coordinators[self.id]
         self.configuration_filepath = configuration_filepath
-        self.http_handlers = (
+        self.__http_handlers = (
                 ('/configuration', {'GET': self.configuration_GET}),
         )
         self.http_server = None
@@ -52,7 +52,7 @@ class CoordinatorServer(object):
         return [json.dumps(self.configuration.representation())]
 
     def serve(self):
-        self.http_server = httpserver.HttpServer(listener=(self.coordinator.address, self.coordinator.port), handlers=self.http_handlers)
+        self.http_server = httpserver.HttpServer(listener=(self.coordinator.address, self.coordinator.port), handlers=self.__http_handlers)
         self.http_server.serve()
 
 def main():

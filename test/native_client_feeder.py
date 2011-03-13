@@ -45,7 +45,8 @@ def main():
     debug.configure_logging('native_client_feeder', level)
 
     listener = (args.address, args.port)
-    client = Client([listener])
+    client = Client('native_client_feeder', [listener])
+    client.connect()
     while not client.is_connected():
         logging.debug('connected nodes: %d (%d)', client.connected_node_count(), client.total_node_count())
         coio.sleep(0.1)
@@ -59,7 +60,7 @@ def main():
     global counter
     while True:
         coio.sleep(1)
-        print counter
+        logging.info('counter = %s', counter)
 
     # last_time = time.time()
     # while True:

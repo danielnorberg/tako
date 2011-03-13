@@ -159,7 +159,7 @@ class Configuration(object):
         if local_node.id in self.active_deployment.nodes:
             deployment_node_bucket = self.active_deployment.buckets.get(local_node.bucket_id, None)
             neighbour_buckets.extend(self.active_deployment.consistent_hash.find_neighbour_buckets(deployment_node_bucket))
-        if local_node.id in self.target_deployment.nodes:
+        if self.target_deployment and local_node.id in self.target_deployment.nodes:
             target_node_bucket = self.target_deployment.buckets.get(local_node.bucket_id, None)
             neighbour_buckets.extend(self.target_deployment.consistent_hash.find_neighbour_buckets(target_node_bucket))
         neighbour_nodes = dict((node.id, node) for bucket in neighbour_buckets for node in bucket)
