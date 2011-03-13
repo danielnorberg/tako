@@ -28,8 +28,10 @@ def feed(client):
         new_timestamp = client.set_value(key, timestamp, value)
         assert new_timestamp == timestamp
         fetched_timestamp, fetched_value = client.get_value(key)
+        stat_timestamp = client.stat_value(key)
         assert fetched_timestamp == timestamp
         assert fetched_value == value
+        assert stat_timestamp == timestamp
 
 
 def main():

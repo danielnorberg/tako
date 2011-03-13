@@ -79,4 +79,11 @@ class Client(object):
         node_client = self.__client_for_key(key)
         if not node_client:
             raise ValueNotAvailableException(key)
-        return node_client.get(key)
+        timestamp, value = node_client.get(key)
+        return (timestamp or None, value)
+
+    def stat_value(self, key):
+        node_client = self.__client_for_key(key)
+        if not node_client:
+            raise ValueNotAvailableException(key)
+        return node_client.stat(key) or None
