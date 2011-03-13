@@ -8,4 +8,4 @@ cdef class Client:
     cdef dict node_clients
     cdef Configuration configuration
 
-    cdef client_for_key(self, str key)
+    cdef __client_for_key(self, str key)

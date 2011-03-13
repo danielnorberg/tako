@@ -41,7 +41,7 @@ class CoordinatorClient(object):
         url = coordinator.configuration_url()
         body, info = http.fetch(url)
         if body:
-            # logging.debug('Got specification: %s', body)
+            # logging.debug('Got representation: %s', body)
             new_timestamp = timestamper.try_loads(info.get('x-timestamp', None))
             if new_timestamp:
                 new_configuration = configuration.try_load_json(body, timestamp=new_timestamp)
@@ -87,7 +87,7 @@ class TestCoordinatorClient(testcase.TestCase):
             coio.sleep(0.01)
             if self.new_configuration or self.new_timestamp:
                 break
-        assert cfg.specification() == self.new_configuration.specification()
+        assert cfg.representation() == self.new_configuration.representation()
         print 'Fetched configuration: ', self.new_configuration
         print 'Timestamp: ', self.new_timestamp
         coordinator_server_task.kill()

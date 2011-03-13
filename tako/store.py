@@ -15,88 +15,69 @@ from utils import timestamper
 BUFFER_THRESHOLD = 4096
 
 class Store(object):
-    def __init__(self, filepath, commit_interval=0.5):
+    def __init__(self, filepath, auto_commit_interval=0.5):
         self.operation_counter = 0
         super(Store, self).__init__()
         debug.log('filepath: %s', filepath)
         self.filepath = filepath
         self.db = tc.BDB()
+        self.db.tune(0, 0, 1024**2*10, 0, -1, 0)
         self.flusher = None
-        self.commit_interval = commit_interval
+        self.auto_commit_interval = auto_commit_interval
+        self.pack_timestamp = timestamper.pack
+        self.unpack_timestamp = timestamper.unpack
 
     def open(self):
         self.db.open(self.filepath, tc.BDBOWRITER | tc.BDBOCREAT)
-        self.begin()
-        self.flusher = coio.stackless.tasklet(self._flush)()
+        if self.auto_commit_interval:
+            self.begin()
+            self.flusher = coio.stackless.tasklet(self.__flush)()
 
     def close(self):
-        self.flusher.kill()
-        self.commit()
+        if self.auto_commit_interval:
+            self.flusher.kill()
+            self.flusher = None
+            self.commit()
         self.db.close()
 
-    def _flush(self):
+    def __flush(self):
         while True:
             debug.log('Committing %d operations', self.operation_counter)
             self.commit()
             self.operation_counter = 0
             self.begin()
-            coio.sleep(self.commit_interval)
+            coio.sleep(self.auto_commit_interval)
 
-    def set(self, key, value, timestamp=None):
+    def set(self, key, timestamp, value):
         self.operation_counter += 1
-        timestamp = timestamp or timestamper.now()
-        self.db.put(key, timestamper.pack(timestamp))
+        self.db.put(key, self.pack_timestamp(timestamp))
         self.db.putcat(key, value)
-        return timestamp
 
-    def set_timestamped(self, key, timestamped_value):
-        self.operation_counter += 1
-        self.db.put(key, timestamped_value)
+    def get(self, key):
+        try:
+            data = self.db.get(key)
+            return self.__unpack_timestamped_data(data)
+        except Exception, e:
+            pass
+        return (None, None)
 
-    def unpack_timestamped_data(self, data):
+    def __unpack_timestamped_data(self, data):
         if len(data) > BUFFER_THRESHOLD:
             value = buffer(data, 8)
         else:
             value = data[8:]
-        timestamp = self.read_timestamp(data)
-        return value, timestamp
+        timestamp = self.unpack_timestamp(data[0:8])
+        return timestamp, value
 
-    def pack_timestamped_data(self, data, timestamp):
-        return timestamper.pack(timestamp) + data
-
-    def read_timestamp(self, data):
-        return timestamper.unpack(data)
-
-    def get_timestamped(self, key):
-        try:
-            return self.db.get(key)
-        except:
-            pass
-        return None
-
-    def get_timestamp(self, key):
-        return self.get(key)[1]
-
-    def get(self, key):
-        value = None
-        timestamp = None
-        try:
-            data = self.db.get(key)
-            value, timestamp = self.unpack_timestamped_data(data)
-            return (value, timestamp)
-        except:
-            pass
-        return (None, None)
-
-    def _jump(self, cur, start):
-        keylen = len(start)
-        cur.jump(start)
-        key = cur.key()
-        if keylen:
-            while not key[:keylen] > start:
-                cur.next()
-                key = cur.key()
-        return key
+    # def _jump(self, cur, start):
+    #     keylen = len(start)
+    #     cur.jump(start)
+    #     key = cur.key()
+    #     if keylen:
+    #         while not key[:keylen] > start:
+    #             cur.next()
+    #             key = cur.key()
+    #     return key
 
     # def _range(self, cur, start, end):
     #   try:
@@ -121,6 +102,9 @@ class Store(object):
     #   for key in self._range(cur, start_key, end_key):
     #       yield key
 
+    def abort(self):
+        self.db.tranabort()
+
     def begin(self):
         self.db.tranbegin()
 
@@ -131,12 +115,13 @@ class StoreTest(testcase.TestCase):
     def testStore(self):
         store = Store(filepath = self.tempfile())
         store.open()
-        timestamp = store.set("foo", "bar")
-        self.assertEqual(store.get("foo"), ("bar", timestamp))
+        timestamp = timestamper.now()
+        store.set("foo", timestamp, "bar")
+        self.assertEqual(store.get("foo"), (timestamp, "bar"))
         self.assertEqual(store.get("loo"), (None, None))
         store.close()
         store.open()
-        self.assertEqual(store.get("foo"), ("bar", timestamp))
+        self.assertEqual(store.get("foo"), (timestamp, "bar"))
         store.close()
 
     # def testRange(self):
@@ -150,47 +135,50 @@ class StoreTest(testcase.TestCase):
 
     def testTransaction(self):
         """docstring for testTransaction"""
-        store = Store(filepath = self.tempfile())
+        store = Store(filepath = self.tempfile(), auto_commit_interval=0)
         store.open()
         store.begin()
-        store.set('foo', 'foo')
+        timestamp = timestamper.now()
+        store.set('foo', timestamp, 'foo')
+        store.abort()
         store.close()
         store.open()
         self.assertEqual(store.get('foo'), (None, None))
         store.begin()
-        timestamp = timestamper.now()
-        store.set('bar', 'bar', timestamp)
-        self.assertEqual(store.get('bar'), ('bar', timestamp))
+        store.set('bar', timestamp, 'bar')
+        self.assertEqual(store.get('bar'), (timestamp, 'bar'))
         store.commit()
-        self.assertEqual(store.get('bar'), ('bar', timestamp))
+        self.assertEqual(store.get('bar'), (timestamp, 'bar'))
         store.close()
         store.open()
-        self.assertEqual(store.get('bar'), ('bar', timestamp))
+        self.assertEqual(store.get('bar'), (timestamp, 'bar'))
 
     def testBuffer(self):
         key = 'foo'
         data = 'bar'
         store = Store(filepath = self.tempfile())
         store.open()
-        timestamp = store.set(key, buffer(data))
-        assert store.get(key) == (data, timestamp)
+        timestamp = timestamper.now()
+        store.set(key, timestamp, buffer(data))
+        assert store.get(key) == (timestamp, data)
 
-    def testPerf(self):
-        import time
-        store = Store(filepath = self.tempfile())
-        data = 'bar' * 1024 * 1024 * 16
-        M = len(data)
-        store.open()
-        start_time = time.time()
-        N = 100
-        for i in xrange(N):
-            store.set(str(i), data)
-        end_time = time.time()
-        # store.close()
-        elapsed_time = end_time - start_time
-        print N / elapsed_time
-        print '%.2f MB/s' % ((M * N / 1024.0 / 1024.0) / elapsed_time)
-
+    # def testPerf(self):
+    #     import time
+    #     store = Store(filepath = self.tempfile())
+    #     data = 'bar' * 1024 * 1024 * 16
+    #     M = len(data)
+    #     store.open()
+    #     start_time = time.time()
+    #     N = 10
+    #     timestamp = timestamper.now()
+    #     for i in xrange(N):
+    #         store.set(str(i), timestamp, data)
+    #     end_time = time.time()
+    #     store.close()
+    #     elapsed_time = end_time - start_time
+    #     print N / elapsed_time
+    #     print '%.2f MB/s' % ((M * N / 1024.0 / 1024.0) / elapsed_time)
+    #
 
 if __name__ == '__main__':
     unittest.main()

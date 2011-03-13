@@ -36,11 +36,11 @@ class NodeServer(object):
         self.store.open()
         self.node_clients = {}
         self.coordinators = coordinators
-        self.internal_multi_client = service.MulticastClient(InternalNodeServiceProtocol())
+        self.internal_cluster_client = service.MulticastClient(InternalNodeServiceProtocol())
         self.http_handlers = (
-                ('/store/', {'GET':self.store_GET, 'POST':self.store_POST}),
-                # ('/internal/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
-                # ('/stat/', {'GET':self.stat_GET}),
+                ('/v/', {'GET':self.store_GET, 'POST':self.store_POST}),
+                # ('/i/', {'GET':self.internal_GET, 'POST':self.internal_POST}),
+                # ('/s/', {'GET':self.stat_GET}),
         )
         self.coordinator_client = CoordinatorClient(coordinators=self.coordinators, callbacks=[self.evaluate_new_configuration], interval=30)
 
@@ -59,7 +59,7 @@ class NodeServer(object):
             self.set_configuration(new_configuration)
 
     def initialize_node_client_pool(self):
-        neighbour_nodes = self.configuration.find_neighbour_nodes_for_node(self.node)
+        neighbour_nodes = self.configuration.find_neighbour_nodes_for_node(self.node) if self.node else {}
         new_node_clients = {}
         for node_id, client in self.node_clients.iteritems():
             if node_id in neighbour_nodes.iteritems():
@@ -74,10 +74,14 @@ class NodeServer(object):
     def set_configuration(self, new_configuration):
         debug.log(new_configuration)
         self.configuration = new_configuration
-        self.deployment = self.configuration.active_deployment
-        self.read_repair_enabled = self.configuration.active_deployment.read_repair_enabled
-        self.node = self.deployment.nodes[self.id]
-        self.http_port = self.node.http_port
+        if self.id in self.configuration.active_deployment.nodes:
+            self.deployment = self.configuration.active_deployment
+        if self.id in self.configuration.target_deployment.nodes:
+            self.deployment = self.configuration.target_deployment
+        self.read_repair_enabled = self.deployment.read_repair_enabled
+        self.node = self.deployment.nodes.get(self.id, None)
+        # TODO: restart http server if needed
+        self.http_port = self.node.http_port if self.node else None
         self.configuration_cache.cache_configuration(self.configuration)
         self.initialize_node_client_pool()
 
@@ -108,55 +112,54 @@ class NodeServer(object):
 
     def internal_get(self, callback, key):
         debug.log('key: %s', key)
-        callback(self.store.get_timestamped(key))
+        timestamp, value = self.store.get(key)
+        callback(timestamp or 0, value)
 
-    def internal_set(self, callback, key, timestamped_value):
+    def internal_set(self, callback, key, timestamp, value):
         debug.log('key: %s', key)
-        self.store.set(key, timestamped_value)
-        callback()
+        self.store.set(key, timestamp, value)
+        callback(timestamp)
 
     def internal_stat(self, callback, key):
         debug.log('key: %s', key)
-        timestamp = self.store.get_timestamp(key) or 0
+        timestamp, value = self.store.get(key)
         debug.log('timestamp: %s', timestamp)
-        callback(timestamp)
+        callback(timestamp or 0)
 
     def public_get(self, callback, key):
         debug.log('key: %s', key)
-        timestamped_value = self.store.get_timestamped(key)
+        timestamp, value = self.store.get(key)
         if self.read_repair_enabled:
-            timestamped_value = self.read_repair(key, timestamped_value)
-        callback(timestamped_value)
+            timestamp, value = self.read_repair(key, timestamp, value)
+        callback(timestamp or 0, value)
 
-    def public_set(self, callback, key, timestamped_value):
+    def public_set(self, callback, key, timestamp, value):
         debug.log("key: %s", key)
         target_nodes = self.configuration.find_nodes_for_key(key)
         local_node = target_nodes.pop(self.node.id, None)
         if local_node:
-            newer = True
-            local_timestamped_value = self.store.get_timestamped(key)
-            if local_timestamped_value:
-                local_timestamp = self.store.read_timestamp(local_timestamped_value)
-                timestamp = self.store.read_timestamp(timestamped_value)
-                if local_timestamp > timestamp:
-                    newer = False
-            if newer:
-                self.store.set_timestamped(key, timestamped_value)
-                self.propagate(key, timestamped_value, target_nodes)
+            local_timestamp, local_value = self.store.get(key)
+            if timestamp > local_timestamp:
+                debug.log('Local timestamp wins: %s > %s', local_timestamp, timestamp)
+                self.store.set(key, timestamp, value)
+                self.propagate(key, timestamp, value, target_nodes)
+            else:
+                timestamp = local_timestamp
         else:
             logging.warning('%s not in %s', self.node.id, target_nodes)
-        callback()
+        logging.debug('timestamp: %s', timestamp)
+        callback(timestamp)
 
     def public_stat(self, callback, key):
-        value = self.store.get(key)
-        callback(value[1] if value else None)
+        def get_callback(timestamp, value):
+            callback(timestamp)
+        self.public_get(get_callback, key)
 
     def store_GET(self, start_response, path, body, env):
         debug.log('path: %s', path)
         key = self.unquote(path)
-        timestamped_value = self.get_value(key)
-        if timestamped_value:
-            value, timestamp = self.store.unpack_timestamped_data(timestamped_value)
+        timestamp, value = self.public_get(key)
+        if timestamp and value:
             start_response('200 OK', [
                     ('Content-Type', 'application/octet-stream'),
                     ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp))),
@@ -172,8 +175,7 @@ class NodeServer(object):
         key = self.unquote(path)
         value = body.read()
         timestamp = self.get_timestamp(env)
-        timestamped_value = self.store.pack_timestamped_data(value, timestamp)
-        self.set_value(key, timestamped_value)
+        self.public_set(key, timestamp, value)
         start_response('200 OK', [
                 ('Content-Type', 'application/octet-stream'),
                 ('X-TimeStamp', str(timestamp)),
@@ -186,9 +188,10 @@ class NodeServer(object):
 
     def fetch_timestamps(self, key):
         debug.log('key: %s', key)
-        neighbour_nodes = self.configuration.find_neighbour_nodes_for_key(key, self.node)
-        clients = self.clients_for_nodes(neighbour_nodes)
-        timestamps = self.internal_multi_client.stat(clients, key)
+        nodes = self.configuration.find_nodes_for_key(key)
+        nodes.pop(self.node.id, None)
+        clients = self.clients_for_nodes(nodes)
+        timestamps = self.internal_cluster_client.stat(clients, key)
         return timestamps
 
     def get_timestamp(self, env):
@@ -201,13 +204,12 @@ class NodeServer(object):
         # debug.log('node_ids: %s', node_ids)
         return [self.node_clients[node_id] for node_id in node_ids]
 
-    def propagate(self, key, timestamped_value, target_nodes):
+    def propagate(self, key, timestamp, value, target_nodes):
         debug.log('key: %s, target_nodes: %s', key, target_nodes)
-        collector = self.internal_multi_client.set_collector(self.clients_for_nodes(target_nodes), 1)
-        self.internal_multi_client.set_async(collector, key, timestamped_value)
+        collector = self.internal_cluster_client.set_collector(self.clients_for_nodes(target_nodes), 1)
+        self.internal_cluster_client.set_async(collector, key, timestamp, value)
 
-    def read_repair(self, key, timestamped_value):
-        timestamp = self.store.read_timestamp(timestamped_value) if timestamped_value else None
+    def read_repair(self, key, timestamp, value):
         debug.log('key: %s, timestamp: %s', key, timestamp)
         remote_timestamps = self.fetch_timestamps(key)
         debug.log('remote: %s', remote_timestamps)
@@ -216,20 +218,20 @@ class NodeServer(object):
         debug.log('newer: %s', newer)
         if newer:
             latest_client, latest_timestamp = newer[-1]
-            latest_timestamped_value = self.fetch_value(key, latest_client.tag)
-            debug.log('latest_timestamped_value: %s', latest_timestamped_value)
-            if latest_timestamped_value:
-                timestamped_value = latest_timestamped_value
-                timestamp = self.store.read_timestamp(latest_timestamped_value)
-                self.store.set_timestamped(key, latest_timestamped_value)
+            latest_timestamp, latest_value = self.fetch_value(key, latest_client.tag)
+            debug.log('latest_timestamp: %s', latest_timestamp)
+            if latest_timestamp and latest_value:
+                value = latest_value
+                timestamp = latest_timestamp
+                self.store.set(key, timestamp, value)
 
         older = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps if remote_timestamp and remote_timestamp < timestamp]
         debug.log('older: %s', older)
         if older:
             older_node_ids = [client.tag for (client, remote_timestamp) in older]
-            self.propagate(key, timestamped_value, older_node_ids)
+            self.propagate(key, timestamp, value, older_node_ids)
 
-        return timestamped_value
+        return timestamp, value
 
 class InternalNodeService(service.Service):
     def __init__(self, node_server):

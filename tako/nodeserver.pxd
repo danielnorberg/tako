@@ -27,7 +27,7 @@ cdef class NodeServer(object):
     cdef object internal_server
     cdef HttpServer http_server
     cdef list coordinators
-    cdef object internal_multi_client
+    cdef object internal_cluster_client
 
     # cdef evaluate_new_configuration(self, new_configuration)
     # cdef set_configuration(self, new_configuration)
@@ -39,8 +39,8 @@ cdef class NodeServer(object):
     cdef fetch_value(self, key, node)
     cdef fetch_timestamps(self, key)
     cdef get_timestamp(self, env)
-    cdef propagate(self, object key, object timestamped_value, object target_nodes)
-    cdef read_repair(self, object key, object timestamped_value)
+    cdef propagate(self, object key, long timestamp, object value, object target_nodes)
+    cdef read_repair(self, object key, long timestamp, object value)
 
     cdef quote(self, key)
     cdef unquote(self, path)
@@ -48,8 +48,8 @@ cdef class NodeServer(object):
     cpdef store_POST(self, start_response, path, body, env)
 
     cpdef public_get(self, callback, key)
-    cpdef public_set(self, callback, key, timestamped_value)
+    cpdef public_set(self, callback, key, timestamp, value)
     cpdef public_stat(self, callback, key)
     cpdef internal_get(self, callback, key)
-    cpdef internal_set(self, callback, key, timestamped_value)
+    cpdef internal_set(self, callback, key, timestamp, value)
     cpdef internal_stat(self, callback, key)

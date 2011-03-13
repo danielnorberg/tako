@@ -17,7 +17,7 @@ cdef class Bucket(object):
     cdef public dict nodes
 
 cdef class Deployment(object):
-    cdef public dict original_specification
+    cdef public dict original_representation
     cdef public str name
     cdef public dict buckets
     cdef public dict nodes
@@ -25,7 +25,7 @@ cdef class Deployment(object):
     cdef public bint read_repair_enabled
     cpdef siblings(self, str node_id)
     cpdef buckets_for_key(self, str key)
-    cpdef specification(self)
+    cpdef representation(self)
 
 cdef class Coordinator(object):
     cdef public str id

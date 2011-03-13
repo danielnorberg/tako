@@ -2,6 +2,9 @@
 #
 # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
 ---
+master_coordinator: c1
+coordinators:
+    c1: [localhost, 4701]
 active_deployment: d1
 target_deployment: d2
 deployments:

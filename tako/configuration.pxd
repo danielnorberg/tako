@@ -5,7 +5,7 @@ from consistenthash cimport ConsistentHash
 
 cdef class Configuration(object):
     cdef public object timestamp
-    cdef public original_specification
+    cdef public original_representation
     cdef public deployments
     cdef public str active_deployment_name
     cdef public Deployment active_deployment
@@ -14,7 +14,5 @@ cdef class Configuration(object):
     cdef public coordinators
     cdef public master_coordinator_id
     cdef public master_coordinator
-    # def load(self, specification):
-    # def specification(self):
-    cpdef find_neighbour_nodes_for_key(self, str key, Node local_node)
+    cpdef find_nodes_for_key(self, str key)
     cpdef find_neighbour_nodes_for_node(self, Node local_node)

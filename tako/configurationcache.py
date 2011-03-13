@@ -81,7 +81,7 @@ class TestConfiguration(testcase.TestCase):
                 cfg.timestamp = timestamper.now()
                 cache.cache_configuration(cfg)
                 read_configuration = cache.get_configuration()
-                self.assertEqual(read_configuration.specification(), cfg.specification())
+                self.assertEqual(read_configuration.representation(), cfg.representation())
                 self.assertEqual(read_configuration.timestamp, cfg.timestamp)
 
 if __name__ == '__main__':

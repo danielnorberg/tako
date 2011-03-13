@@ -30,7 +30,7 @@ class CoordinatorServer(object):
         super(CoordinatorServer, self).__init__()
         self.id = coordinator_id
         self.original_configuration = configuration
-        self.configuration = Configuration(configuration.specification())
+        self.configuration = Configuration(configuration.representation())
         self.configuration.timestamp = timestamper.from_seconds(os.stat(configuration_filepath).st_mtime)
         logging.debug('timestamp: %s', self.configuration.timestamp)
         self.coordinator = configuration.coordinators[self.id]
@@ -49,7 +49,7 @@ class CoordinatorServer(object):
                 ('content-type', 'application/json'),
                 ('x-timestamp', str(self.configuration.timestamp)),
         ])
-        return [json.dumps(self.configuration.specification())]
+        return [json.dumps(self.configuration.representation())]
 
     def serve(self):
         self.http_server = httpserver.HttpServer(listener=(self.coordinator.address, self.coordinator.port), handlers=self.http_handlers)

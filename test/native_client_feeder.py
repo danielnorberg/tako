@@ -2,20 +2,14 @@ import argparse
 import hashlib
 import time
 import logging
-import gc
-import random
-import sys
 
 from syncless import coio
 
 import paths
 paths.setup()
 
-from tako.utils import debug
-
 from tako.client import Client
-
-import refcounts
+from tako.utils import debug
 
 def sha256(v):
     sha = hashlib.sha256()
@@ -26,13 +20,16 @@ counter = 0
 def feed(client):
     global counter
     while True:
-        key = sha256(int(random.randint(0, sys.maxint)))
+        key = sha256(str(counter))
         value = sha256(key) * 16
         timestamp = long(time.time() * 1000000.0)
-        logging.debug(('sending', counter, key, timestamp))
-        client.set_value(key, value, timestamp)
-        logging.debug(('done', counter, key, timestamp))
-        counter += 1
+        key = sha256(repr(timestamp))
+        counter += 2
+        new_timestamp = client.set_value(key, timestamp, value)
+        assert new_timestamp == timestamp
+        fetched_timestamp, fetched_value = client.get_value(key)
+        assert fetched_timestamp == timestamp
+        assert fetched_value == value
 
 
 def main():
@@ -53,7 +50,6 @@ def main():
         logging.debug('connected nodes: %d (%d)', client.connected_node_count(), client.total_node_count())
         coio.sleep(0.1)
 
-    # last_time = time.time()
     print 'feeding cluster coordinated by %s' % repr(listener)
     M = 1000
 
@@ -61,10 +57,21 @@ def main():
         coio.stackless.tasklet(feed)(client)
 
     global counter
-    last_counter = 0
     while True:
         coio.sleep(1)
         print counter
+
+    # last_time = time.time()
+    # while True:
+    #     key = sha256(str(counter))
+    #     value = sha256(key) * 16
+    #     timestamp = long(time.time() * 1000000.0)
+    #     logging.debug(('sending', counter, timestamp, key))
+    #     counter += 1
+    #     new_timestamp = client.set_value(key, timestamp, value)
+    #     if new_timestamp != timestamp:
+    #         logging.error('timestamp differs: %s -> %s', timestamp, new_timestamp)
+    #     logging.debug(('done', counter, key, new_timestamp))
 
     # i = 0
     # N = 1000

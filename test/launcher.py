@@ -16,8 +16,8 @@ def launch(configuration_filepath, profiling=False, debug=False):
     logging.info('Using configuration file: %s', configuration_filepath)
 
     os.chdir(paths.home)
-    profiling_cmd = lambda nodeid: profiling and '-p nodeserver-%s.prof' % nodeid or ''
-    debug_cmd = '-d' if debug else ''
+    profiling_arg = lambda nodeid: profiling and '-p nodeserver-%s.prof' % nodeid or ''
+    debug_arg = '-d' if debug else ''
     absolute_configuration_filepath = paths.path(configuration_filepath)
     cfg = Configuration(yaml.load(open(absolute_configuration_filepath)))
 
@@ -26,7 +26,7 @@ def launch(configuration_filepath, profiling=False, debug=False):
     processes = []
 
     for coordinator in cfg.coordinators.itervalues():
-        cmd = 'python bin/tako-coordinator -id %s -cfg %s %s &> var/log/coordinator-%s.log' % (coordinator.id, configuration_filepath, debug_cmd, coordinator.id)
+        cmd = 'python bin/tako-coordinator -id %s -cfg %s %s &> var/log/coordinator-%s.log' % (coordinator.id, configuration_filepath, debug_arg, coordinator.id)
         proc = subprocess.Popen(cmd, shell=True)
         processes.append(proc)
         logging.info('Launched Coordinator "%s" (pid: %d)', coordinator.id, proc.pid)
@@ -35,13 +35,16 @@ def launch(configuration_filepath, profiling=False, debug=False):
     logging.info('Done.')
     logging.info('Starting node processes.')
 
+    cfg_arg = '' if cfg.coordinators else '-cfg %s' % configuration_filepath
     coordinator_arguments = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for coordinator in cfg.coordinators.itervalues()])
-    for node_id, node in cfg.active_deployment.nodes.iteritems():
+    nodes = dict(cfg.active_deployment.nodes)
+    if cfg.target_deployment:
+        nodes.update(cfg.target_deployment.nodes)
+    for node_id, node in nodes.iteritems():
         log_filepath = 'var/log/node-%s.log' % node_id
         with open(log_filepath, 'wb') as logfile:
             logfile.truncate()
-        # cmd = 'python bin/tako-node -id %s -cfg %s %s %s -l %s' % (node_id, configuration_filepath, profiling_cmd(node.id), debug_cmd, log_filepath)
-        cmd = 'python bin/tako-node -id %s %s %s %s -l %s' % (node_id, coordinator_arguments, profiling_cmd(node.id), debug_cmd, log_filepath)
+        cmd = 'python bin/tako-node -id %s %s %s %s %s -l %s' % (node_id, coordinator_arguments, profiling_arg(node.id), debug_arg, cfg_arg, log_filepath)
         if args.skip and node_id in args.skip:
             logging.info('Skipped Node "%s". Command: %s', node_id, cmd)
         else:

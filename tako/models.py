@@ -49,7 +49,7 @@ class Bucket(object):
     def __iter__(self):
         return self.nodes.itervalues()
 
-    def specification(self):
+    def representation(self):
         return dict((node.id, [node.address, node.http_port, node.raw_port]) for node in self.nodes.itervalues())
 
     # Essential for consistent hashing, be careful when modifying!
@@ -58,18 +58,18 @@ class Bucket(object):
 
 class Deployment(object):
     """docstring for Deployment"""
-    def __init__(self, name, specification):
+    def __init__(self, name, representation):
         super(Deployment, self).__init__()
-        self.original_specification = specification
+        self.original_representation = representation
         self.name = name
         self.buckets = {}
-        for bucket_id, bucket in specification['buckets'].iteritems():
+        for bucket_id, bucket in representation['buckets'].iteritems():
             nodes = dict((node_id, Node(node_id, bucket_id, address, http_port, raw_port)) for node_id, (address, http_port, raw_port) in bucket.iteritems())
             self.buckets[bucket_id] = Bucket(bucket_id, nodes)
         self.nodes = dict((node_id, node) for bucket in self.buckets.itervalues() for node_id, node in bucket.nodes.iteritems())
-        hash_configuration = specification.get('hash', {})
+        hash_configuration = representation.get('hash', {})
         self.consistent_hash = ConsistentHash(self.buckets.values(), **hash_configuration)
-        self.read_repair_enabled = specification.get('read_repair', True)
+        self.read_repair_enabled = representation.get('read_repair', True)
 
     def siblings(self, node_id):
         """docstring for siblings"""
@@ -82,13 +82,13 @@ class Deployment(object):
     def buckets_for_key(self, key):
         return self.consistent_hash.find_buckets(key)
 
-    def specification(self):
+    def representation(self):
         spec = {
                 'read_repair': self.read_repair_enabled,
                 'hash': {
                         'buckets_per_key': self.consistent_hash.buckets_per_key,
                 },
-                'buckets':dict((bucket_id, bucket.specification()) for bucket_id, bucket in self.buckets.iteritems()),
+                'buckets':dict((bucket_id, bucket.representation()) for bucket_id, bucket in self.buckets.iteritems()),
         }
         return spec
 
