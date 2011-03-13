@@ -9,8 +9,6 @@ cdef class Store(object):
     cdef object pack_timestamp
     cdef object unpack_timestamp
 
-    cdef __flush(self)
-
     cpdef begin(self)
     cpdef commit(self)
 

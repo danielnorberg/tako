@@ -47,9 +47,3 @@ cdef class NodeServer(object):
     cpdef store_GET(self, start_response, path, body, env)
     cpdef store_POST(self, start_response, path, body, env)
 
-    cpdef public_get(self, callback, key)
-    cpdef public_set(self, callback, key, timestamp, value)
-    cpdef public_stat(self, callback, key)
-    cpdef internal_get(self, callback, key)
-    cpdef internal_set(self, callback, key, timestamp, value)
-    cpdef internal_stat(self, callback, key)

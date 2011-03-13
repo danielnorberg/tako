@@ -29,14 +29,14 @@ class CoordinatorClient(object):
         self.configuration = None
 
     def start(self):
-        self.configuration_fetcher = coio.stackless.tasklet(self.fetch_configurations)()
+        self.configuration_fetcher = coio.stackless.tasklet(self.__fetch_configurations)()
 
-    def notify(self):
+    def __notify(self):
         logging.debug('configuration: %s', self.configuration)
         for f in self.callbacks:
             f(self.configuration)
 
-    def fetch_configuration(self, coordinator):
+    def __fetch_configuration(self, coordinator):
         # logging.debug('coordinator: %s', coordinator)
         url = coordinator.configuration_url()
         body, info = http.fetch(url)
@@ -48,22 +48,22 @@ class CoordinatorClient(object):
                 return (new_configuration, coordinator)
         return (None, coordinator)
 
-    def set_configuration(self, new_configuration):
+    def __set_configuration(self, new_configuration):
         self.configuration = new_configuration
         self.coordinators = new_configuration.coordinators.values()
 
-    def fetch_configurations(self):
+    def __fetch_configurations(self):
         while True:
             logging.debug('coordinators: %s', self.coordinators)
             if self.coordinators:
                 configurations = []
                 for coordinator in self.coordinators:
-                    configurations.append(self.fetch_configuration(coordinator))
+                    configurations.append(self.__fetch_configuration(coordinator))
                 configurations.sort()
                 for new_configuration, source_coordinator in configurations:
                     if new_configuration and (not self.configuration or new_configuration.timestamp > self.configuration.timestamp):
-                        self.set_configuration(new_configuration)
-                        self.notify()
+                        self.__set_configuration(new_configuration)
+                        self.__notify()
                         break
             coio.sleep(self.interval)
 
