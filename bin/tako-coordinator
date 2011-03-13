@@ -1,10 +1,52 @@
 #! /usr/bin/env python
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
-import sys, os, string
+import argparse
+import logging
+import os
+import sys
 
 home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
 sys.path.insert(0, home)
 
-from tako import coordinatorserver
-coordinatorserver.main()
+from tako import configuration
+from tako.coordinatorserver import CoordinatorServer
+from tako.utils import debug
+
+def main():
+    parser = argparse.ArgumentParser(description="Tako Coordinator")
+    parser.add_argument('-id', '--id', help='Server id. Default = 1', default='c1')
+    parser.add_argument('-cfg','--config', help='Config file.', default='test/local_cluster.yaml')
+    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
+    parser.add_argument('-l', '--log-file', help='Log file.')
+
+    try:
+        args = parser.parse_args()
+    except IOError, e:
+        logging.error(e)
+        exit(-1)
+
+    level = logging.DEBUG if args.debug else logging.INFO
+    debug.configure_logging('coordinatorserver', level, args.log_file)
+
+    cfg = configuration.try_load_file(args.config)
+
+    if not cfg:
+        logging.error('Failed to load configuration.')
+        exit(-1)
+
+    logging.info('Tako Coordinator Starting')
+    logging.info('Coordinator id: %s', args.id)
+    logging.info('Config file: %s', args.config)
+    logging.info('Serving up %s on port %d', args.config, cfg.coordinators[args.id].port)
+
+    try:
+        server = CoordinatorServer(args.id, cfg, args.config)
+        server.serve()
+    except KeyboardInterrupt:
+        pass
+
+    logging.info('Exiting...')
+
+if __name__ == '__main__':
+    main()

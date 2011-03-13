@@ -1,29 +1,13 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
-import argparse
 import logging
 import os
 import simplejson as json
 
-import configuration
 from configuration import Configuration
 from utils import debug
 from utils import timestamper
 from utils import httpserver
-
-class BadRequest(object):
-    """docstring for BadRequest"""
-    def __init__(self, description=''):
-        super(BadRequest, self).__init__()
-        self.description = description
-
-    def __str__(self):
-        """docstring for __str__"""
-        return repr(self)
-
-    def __repr__(self):
-        """docstring for __repr__"""
-        return "BadRequest('%s')" % self.description
 
 class CoordinatorServer(object):
     def __init__(self, coordinator_id, configuration, configuration_filepath):
@@ -54,43 +38,3 @@ class CoordinatorServer(object):
     def serve(self):
         self.http_server = httpserver.HttpServer(listener=(self.coordinator.address, self.coordinator.port), handlers=self.__http_handlers)
         self.http_server.serve()
-
-def main():
-    parser = argparse.ArgumentParser(description="Tako Coordinator")
-    parser.add_argument('-id', '--id', help='Server id. Default = 1', default='c1')
-    parser.add_argument('-cfg','--config', help='Config file.', default='test/local_cluster.yaml')
-    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
-
-    try:
-        args = parser.parse_args()
-    except IOError, e:
-        logging.error(e)
-        exit(-1)
-
-    level = logging.DEBUG if args.debug else logging.INFO
-    debug.configure_logging('coordinatorserver', level)
-
-    cfg = configuration.try_load_file(args.config)
-
-    if not cfg:
-        logging.error('Failed to load configuration.')
-        exit(-1)
-
-    logging.info('Tako Coordinator Starting')
-    logging.info('Coordinator id: %s', args.id)
-    logging.info('Config file: %s', args.config)
-    logging.info('Serving up %s on port %d', args.config, cfg.coordinators[args.id].port)
-
-    try:
-        server = CoordinatorServer(args.id, cfg, args.config)
-        server.serve()
-    except KeyboardInterrupt:
-        pass
-
-    logging.info('Exiting...')
-
-if __name__ == '__main__':
-    import paths
-    paths.setup()
-    os.chdir(paths.home)
-    main()

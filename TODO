@@ -1,0 +1,2 @@
+* log rotation
+* daemonization: http://pypi.python.org/pypi/python-daemon/

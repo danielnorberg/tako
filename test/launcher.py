@@ -25,7 +25,13 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
     processes = []
     try:
         for coordinator in cfg.coordinators.itervalues():
-            cmd = 'python bin/tako-coordinator -id %s -cfg %s %s &> var/log/coordinator-%s.log' % (coordinator.id, configuration_filepath, debug_arg, coordinator.id)
+            log_filepath = 'var/log/coordinator-%s.log' % coordinator.id
+            cmd = 'python bin/tako-coordinator -id %(id)s -cfg %(cfg)s -l %(logfile)s %(debug)s' % {
+                'id':coordinator.id,
+                'cfg':configuration_filepath,
+                'logfile':log_filepath,
+                'debug':debug_arg,
+            }
             proc = subprocess.Popen(cmd, shell=True)
             processes.append(proc)
             logging.info('Launched Coordinator "%s" (pid: %d)', coordinator.id, proc.pid)
