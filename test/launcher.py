@@ -1,9 +1,10 @@
-import yaml
-import subprocess
-import os
-import signal
 import argparse
 import logging
+import os
+import signal
+import subprocess
+import time
+import yaml
 
 import paths
 paths.setup()
@@ -109,8 +110,10 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
 
 if __name__ == '__main__':
+    default_configuration_filepath = paths.path('test/current_configuration.yaml')
+
     parser = argparse.ArgumentParser(description="Launcher")
-    parser.add_argument('-c', '--configuration', help='Configuration file.', default='current_configuration.yaml')
+    parser.add_argument('-c', '--configuration', help='Configuration file.', default=default_configuration_filepath)
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-s', '--skip', help='Skip node.', type=str, nargs='+')
     parser.add_argument('-p', '--proxy', help='Proxy Server (address port)', nargs=2, action='append')
