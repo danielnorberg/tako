@@ -16,22 +16,24 @@ class ValueNotAvailableException(BaseException):
         self.key = key
 
 class Client(object):
-    def __init__(self, name, coordinator_addresses=[], explicit_configuration=None, configuration_cache_directory=None):
+    def __init__(self, name, coordinator_addresses=[], explicit_configuration=None, configuration_cache_directory=None,
+                 configuration_update_interval=5*30):
         super(Client, self).__init__()
         self.__node_clients = {}
         self.__configuration = None
         self.__configuration_controller = ConfigurationController(name, coordinator_addresses, explicit_configuration,
-                                                             configuration_cache_directory, self.__update_configuration)
+                                                                  configuration_cache_directory, self.__update_configuration,
+                                                                  configuration_update_interval)
 
     def __initialize_node_client_pool(self):
-        nodes = self.__configuration.all_nodes()
+        new_nodes = self.__configuration.all_nodes()
         new_node_clients = {}
         for node_id, client in self.__node_clients.iteritems():
-            if node_id in nodes.iteritems():
+            if node_id in new_nodes:
                 new_node_clients[node_id] = client
             else:
                 client.close()
-        for node_id, node in nodes.iteritems():
+        for node_id, node in new_nodes.iteritems():
             if node_id not in new_node_clients:
                 new_node_clients[node_id] = service.Client((node.address, node.raw_port), PublicNodeServiceProtocol, tag=node_id)
         self.__node_clients = new_node_clients
@@ -81,8 +83,11 @@ class Client(object):
         node_client = self.__client_for_key(key)
         if not node_client:
             raise ValueNotAvailableException(key)
-        timestamp, value = node_client.get(key)
-        return (timestamp or None, value)
+        result = node_client.get(key)
+        if not result:
+            raise ValueNotAvailableException(key)
+        timestamp, value = result
+        return timestamp or None, value
 
     def stat_value(self, key):
         node_client = self.__client_for_key(key)

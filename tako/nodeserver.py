@@ -23,11 +23,13 @@ class NoConfigurationException(BaseException):
     pass
 
 class NodeServer(object):
-    def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinator_addresses=[], var_directory='var'):
+    def __init__(self, node_id, store_file=None, explicit_configuration=None, coordinator_addresses=[], var_directory='var',
+                 configuration_update_interval=300):
         super(NodeServer, self).__init__()
         debug.log('node_id = %s, store_file = %s, explicit_configuration = %s, coordinators = %s, var_directory = %s',
                   node_id, store_file, explicit_configuration, coordinator_addresses, var_directory)
         self.id = node_id
+        self.node = None
         var_directory = paths.path(var_directory)
         store_file = store_file or os.path.join(var_directory, 'data', '%s.tcb' % self.id)
         self.__store = Store(store_file)
@@ -41,7 +43,7 @@ class NodeServer(object):
         )
         configuration_directory = os.path.join(var_directory, 'etc')
         self.__configuration_controller = ConfigurationController('nodeserver-%s' % self.id, coordinator_addresses, explicit_configuration,
-                                                                  configuration_directory, self.__update_configuration)
+                                                                  configuration_directory, self.__update_configuration, configuration_update_interval)
         logging.debug('self.__configuration_controller == %s', self.__configuration_controller)
 
     def __initialize_node_client_pool(self):
@@ -49,7 +51,7 @@ class NodeServer(object):
         neighbour_nodes = self.__configuration_controller.configuration.find_neighbour_nodes_for_node(self.node) if self.node else {}
         new_node_clients = {}
         for node_id, client in self.__node_clients.iteritems():
-            if node_id in neighbour_nodes.iteritems():
+            if node_id in neighbour_nodes:
                 new_node_clients[node_id] = client
             else:
                 client.close()
@@ -62,12 +64,13 @@ class NodeServer(object):
         logging.debug('self.__store == %s', self.__store)
         logging.debug('self.__configuration_controller == %s', self.__configuration_controller)
         debug.log('New configuration: %s', new_configuration)
+        deployment = None
         if self.id in new_configuration.active_deployment.nodes:
-            self.deployment = new_configuration.active_deployment
+            deployment = new_configuration.active_deployment
         if new_configuration.target_deployment and self.id in new_configuration.target_deployment.nodes:
-            self.deployment = new_configuration.target_deployment
-        self.read_repair_enabled = self.deployment.read_repair_enabled
-        self.node = self.deployment.nodes.get(self.id, None)
+            deployment = new_configuration.target_deployment
+        self.read_repair_enabled = deployment.read_repair_enabled if deployment else False
+        self.node = deployment.nodes.get(self.id, None) if deployment else None
         # TODO: restart http server if needed
         self.http_port = self.node.http_port if self.node else None
         self.__initialize_node_client_pool()
@@ -206,7 +209,7 @@ class NodeServer(object):
 
     def serve(self):
         self.__configuration_controller.start()
-        while not self.__configuration_controller.configuration:
+        while not self.node:
             debug.log('Waiting for configuration.')
             coio.sleep(1)
 

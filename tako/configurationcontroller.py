@@ -1,4 +1,5 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
+import logging
 
 import paths
 paths.setup()
@@ -47,7 +48,8 @@ class ConfigurationController(object):
 
     def __evaluate_new_configuration(self, new_configuration):
         if not self.configuration or new_configuration.timestamp > self.configuration.timestamp:
-            debug.log('New configuration: %s', new_configuration)
+            if self.configuration:
+                logging.info('New configuration: %s', new_configuration)
             self.configuration = new_configuration
             if self.__configuration_cache:
                 self.__configuration_cache.cache_configuration(self.configuration)

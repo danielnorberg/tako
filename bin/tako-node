@@ -16,6 +16,25 @@ from tako.nodeserver import NodeServer
 from tako.utils import debug
 from tako.utils import convert
 
+def main():
+    parser = argparse.ArgumentParser(description="Tako Node")
+    parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
+    parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
+    parser.add_argument('-f','--file', help='Database file.')
+    parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
+    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
+    parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
+    parser.add_argument('-l', '--log-file', help='Log file.')
+    parser.add_argument('-u', '--update', help='Configuration update interval (seconds) default = 300', type=int, default=300)
+
+    args = parser.parse_args()
+
+    if args.profiling_file:
+        import cProfile
+        cProfile.runctx('_main(args)', globals(), locals(), args.profiling_file)
+    else:
+        _main(args)
+
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
     debug.configure_logging('nodeserver', level, args.log_file)
@@ -42,7 +61,8 @@ def _main(args):
                 exit(1)
             coordinators.append((address, port))
     try:
-        server = NodeServer(args.id, store_file=args.file, explicit_configuration=config, coordinator_addresses=coordinators)
+        server = NodeServer(args.id, store_file=args.file, explicit_configuration=config,
+                            coordinator_addresses=coordinators, configuration_update_interval=args.update)
         server.serve()
         while True:
             coio.sleep(1)
@@ -51,24 +71,6 @@ def _main(args):
     except Exception, e:
         logging.exception(e)
         raise
-
-def main():
-    parser = argparse.ArgumentParser(description="Tako Node")
-    parser.add_argument('-id', '--id', help='Server id. Default = n1', default='n1')
-    parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
-    parser.add_argument('-f','--file', help='Database file.')
-    parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
-    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
-    parser.add_argument('-p', '--profiling-file', help='Enable performance profiling.')
-    parser.add_argument('-l', '--log-file', help='Log file.')
-
-    args = parser.parse_args()
-
-    if args.profiling_file:
-        import cProfile
-        cProfile.runctx('_main(args)', globals(), locals(), args.profiling_file)
-    else:
-        _main(args)
 
 if __name__ == '__main__':
     main()

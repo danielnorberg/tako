@@ -16,6 +16,24 @@ from tako.proxyserver import ProxyServer
 from tako.utils import debug
 from tako.utils import convert
 
+def main():
+    parser = argparse.ArgumentParser(description="Tako Proxy")
+    parser.add_argument('-p', '--port', help='port. Default = 8080', default=8080, type=int)
+    parser.add_argument('-id', '--id', help='Proxy id. Default = p1', default='p1')
+    parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
+    parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
+    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
+    parser.add_argument('-prof', '--profiling-file', help='Enable performance profiling.')
+    parser.add_argument('-l', '--log-file', help='Log file.')
+
+    args = parser.parse_args()
+
+    if args.profiling_file:
+        import cProfile
+        cProfile.runctx('_main(args)', globals(), locals(), args.profiling_file)
+    else:
+        _main(args)
+
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
     debug.configure_logging('proxyserver', level, args.log_file)
@@ -48,24 +66,6 @@ def _main(args):
     except Exception, e:
         logging.exception(e)
         raise
-
-def main():
-    parser = argparse.ArgumentParser(description="Tako Proxy")
-    parser.add_argument('-p', '--port', help='port. Default = 8080', default=8080, type=int)
-    parser.add_argument('-id', '--id', help='Proxy id. Default = p1', default='p1')
-    parser.add_argument('-c', '--coordinator', help='Coordinator Server (address port)', nargs=2, action='append')
-    parser.add_argument('-cfg','--config', help='Configuration file. For use without a coordinator.')
-    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
-    parser.add_argument('-prof', '--profiling-file', help='Enable performance profiling.')
-    parser.add_argument('-l', '--log-file', help='Log file.')
-
-    args = parser.parse_args()
-
-    if args.profiling_file:
-        import cProfile
-        cProfile.runctx('_main(args)', globals(), locals(), args.profiling_file)
-    else:
-        _main(args)
 
 if __name__ == '__main__':
     main()

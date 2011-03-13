@@ -30,7 +30,7 @@ class CoordinatorServer(object):
         logging.debug('timestamp: %s', self.configuration.timestamp)
 
     def configuration_GET(self, start_response, path, body, env):
-        logging.debug(str(self.configuration.timestamp))
+        logging.info('%(REMOTE_ADDR)s [GET %(PATH_INFO)s %(SERVER_PROTOCOL)s]', env)
         start_response('200 OK', [
             ('content-type', 'application/json'),
             ('x-timestamp', str(self.configuration.timestamp)),
