@@ -48,6 +48,37 @@ class Store(object):
             self.begin()
             coio.sleep(self.auto_commit_interval)
 
+    def __unpack_timestamped_data(self, data):
+        if len(data) > BUFFER_THRESHOLD:
+            value = buffer(data, 8)
+        else:
+            value = data[8:]
+        timestamp = self.unpack_timestamp(data[0:8])
+        return timestamp, value
+
+    def __jump(self, cur, start):
+        keylen = len(start)
+        cur.jump(start)
+        key = cur.key()
+        if keylen:
+            while not key[:keylen] > start:
+                cur.next()
+                key = cur.key()
+        return key
+
+    def __range(self, cur, start, end):
+        keys = []
+        try:
+            endlen = len(end)
+            key = self.__jump(cur, start)
+            while key[:endlen] <= end:
+                keys.append(key)
+                cur.next()
+                key = cur.key()
+        except KeyError:
+            pass
+        return keys
+
     def set(self, key, timestamp, value):
         self.operation_counter += 1
         self.db.put(key, self.pack_timestamp(timestamp))
@@ -61,46 +92,9 @@ class Store(object):
             pass
         return (None, None)
 
-    def __unpack_timestamped_data(self, data):
-        if len(data) > BUFFER_THRESHOLD:
-            value = buffer(data, 8)
-        else:
-            value = data[8:]
-        timestamp = self.unpack_timestamp(data[0:8])
-        return timestamp, value
-
-    # def _jump(self, cur, start):
-    #     keylen = len(start)
-    #     cur.jump(start)
-    #     key = cur.key()
-    #     if keylen:
-    #         while not key[:keylen] > start:
-    #             cur.next()
-    #             key = cur.key()
-    #     return key
-
-    # def _range(self, cur, start, end):
-    #   try:
-    #       endlen = len(end)
-    #       key = self._jump(cur, start)
-    #       while key[:endlen] <= end:
-    #           yield key
-    #           cur.next()
-    #           key = cur.key()
-    #   except KeyError:
-    #       pass
-    #
-    # def get_key_value_range(self, start_key, end_key):
-    #   """docstring for get_key_value_range"""
-    #   cur = self.db.curnew()
-    #   for key in self._range(cur, start_key, end_key):
-    #       yield (key, self.unpack_timestamped_data(cur.val()))
-    #
-    # def get_key_range(self, start_key, end_key):
-    #   """docstring for get_key_range"""
-    #   cur = self.db.curnew()
-    #   for key in self._range(cur, start_key, end_key):
-    #       yield key
+    def get_key_range(self, start_key, end_key):
+        cur = self.db.curnew()
+        return self.__range(cur, start_key, end_key)
 
     def abort(self):
         self.db.tranabort()
@@ -124,14 +118,15 @@ class StoreTest(testcase.TestCase):
         self.assertEqual(store.get("foo"), (timestamp, "bar"))
         store.close()
 
-    # def testRange(self):
-    #   store = Store(filepath = self.tempfile())
-    #   store.open()
-    #   ks = ['a', 'aa', 'ab', 'ba', 'bb', 'c']
-    #   for k in ks:
-    #       store.set(k, k)
-    #   self.assertEqual(set(store.get_key_range('a', 'b')), set(['ba', 'bb']))
-    #   self.assertEqual(set(store.get_key_range('', 'c')), set(ks))
+    def testRange(self):
+      store = Store(filepath = self.tempfile())
+      store.open()
+      ks = ['a', 'aa', 'ab', 'ba', 'bb', 'c']
+      timestamp = timestamper.now()
+      for k in ks:
+          store.set(k, timestamp, k)
+      self.assertEqual(set(store.get_key_range('a', 'b')), set(['ba', 'bb']))
+      self.assertEqual(set(store.get_key_range('', 'c')), set(ks))
 
     def testTransaction(self):
         """docstring for testTransaction"""
@@ -161,24 +156,6 @@ class StoreTest(testcase.TestCase):
         timestamp = timestamper.now()
         store.set(key, timestamp, buffer(data))
         assert store.get(key) == (timestamp, data)
-
-    # def testPerf(self):
-    #     import time
-    #     store = Store(filepath = self.tempfile())
-    #     data = 'bar' * 1024 * 1024 * 16
-    #     M = len(data)
-    #     store.open()
-    #     start_time = time.time()
-    #     N = 10
-    #     timestamp = timestamper.now()
-    #     for i in xrange(N):
-    #         store.set(str(i), timestamp, data)
-    #     end_time = time.time()
-    #     store.close()
-    #     elapsed_time = end_time - start_time
-    #     print N / elapsed_time
-    #     print '%.2f MB/s' % ((M * N / 1024.0 / 1024.0) / elapsed_time)
-    #
 
 if __name__ == '__main__':
     unittest.main()
