@@ -63,9 +63,8 @@ class ProxyServer(object):
         key = self.__unquote(path)
         value = body.read()
         timestamp = self.__get_timestamp(env)
-
         try:
-            new_timestamp = self.__client.set(key, timestamp, value)
+            new_timestamp = self.__client.set_value(key, timestamp, value)
         except ValueNotAvailableException:
             start_response('503 Service Unavailable', [])
             return ['']
