@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='tako',
-    version='0.0.3',
+    version='0.0.4',
     packages=['tako', 'tako.utils'],
     scripts=[
         'bin/tako-node',
@@ -15,7 +15,7 @@ setup(
     install_requires = [
         'socketless >= 0.3.1',
         'pytc >= 0.8',
-        'argparse'
+        'argparse',
         'pyyaml',
         'simplejson',
         'urllib3'
