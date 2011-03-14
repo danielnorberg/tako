@@ -1,6 +1,6 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
-import tc
+import pytc as tc
 import unittest
 import logging
 import struct
