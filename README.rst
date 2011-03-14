@@ -9,7 +9,7 @@ Within a cluster, tako nodes communicate using a binary protocol and the socketl
 Tako makes use of libev/libevent/kqueue/kpoll if present.
 Tokyo Cabinet is used for data storage.
 
-See: http://pypi.python.org/pypi/tako
+Project Home: http://pypi.python.org/pypi/tako
 
 Installation
 ============
@@ -22,14 +22,16 @@ Lenny might work as well but you might hit some snags with Python 2.5.
 
 It is recommended that Tako is installed using virtualenv.
 
-First some prerequisites:
+First, some prerequisites:
 
     $ apt-get install build-essential python-virtualenv python-dev libev-dev libtokyocabinet-dev
 
-Create the virtual environment that will host the tako installation.
+Next, the virtual environment that will host the tako installation.
 
     $ virtualenv tako
+
     $ cd tako
+
     $ bin/pip install tako
 
 
