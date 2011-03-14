@@ -11,7 +11,6 @@ import paths
 paths.setup()
 
 from utils import debug
-from utils import testcase
 from utils import timestamper
 from models import Coordinator, Deployment
 
@@ -171,22 +170,3 @@ class Configuration(object):
         if self.target_deployment:
             nodes.update([(node.id, node) for bucket in self.target_deployment.buckets.itervalues() for node in bucket])
         return nodes
-
-class TestConfiguration(testcase.TestCase):
-    def testParsing(self):
-        files = ['test/config.yaml', 'test/local_cluster.yaml', 'test/migration.yaml']
-        for f in files:
-            print
-            filepath = paths.path(f)
-            with open(filepath) as specfile:
-                loaded_representation = yaml.load(specfile)
-                timestamp = timestamper.from_seconds(os.path.getmtime(filepath))
-                helper_loaded_configuration = try_load_file(filepath)
-                manually_loaded_configuration = Configuration(loaded_representation, timestamp)
-                self.assertEqual(manually_loaded_configuration.representation(), loaded_representation)
-                self.assertEqual(manually_loaded_configuration.representation(), helper_loaded_configuration.representation())
-                self.assertEqual(manually_loaded_configuration.timestamp, helper_loaded_configuration.timestamp)
-
-if __name__ == '__main__':
-    import unittest
-    unittest.main()

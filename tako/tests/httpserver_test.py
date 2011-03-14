@@ -9,9 +9,11 @@ from syncless import coio
 from syncless import patch
 patch.patch_socket()
 
-from httpserver import HttpServer
-from testcase import TestCase
+import paths
+paths.setup()
 
+from tako.utils.httpserver import HttpServer
+from tako.utils.testcase import TestCase
 
 class TestHttpServer(TestCase):
     def GET(self, start_response, path, body, env):

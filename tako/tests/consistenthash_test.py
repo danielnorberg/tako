@@ -1,9 +1,11 @@
 import hashlib
 import unittest
-from utils import testcase
 
+import paths
+paths.setup()
 
-from consistenthash import ConsistentHash
+from tako.utils import testcase
+from tako.consistenthash import ConsistentHash
 
 class TestConsistentHash(testcase.TestCase):
     """docstring for TestConsistentHash"""

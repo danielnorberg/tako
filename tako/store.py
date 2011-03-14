@@ -1,15 +1,9 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
 import pytc as tc
-import unittest
-import logging
-import struct
-
 from syncless import coio
 
-import utils
 from utils import debug
-from utils import testcase
 from utils import timestamper
 
 BUFFER_THRESHOLD = 4096
@@ -88,7 +82,7 @@ class Store(object):
         try:
             data = self.db.get(key)
             return self.__unpack_timestamped_data(data)
-        except Exception, e:
+        except Exception:
             pass
         return (None, None)
 
@@ -105,57 +99,3 @@ class Store(object):
     def commit(self):
         self.db.trancommit()
 
-class StoreTest(testcase.TestCase):
-    def testStore(self):
-        store = Store(filepath = self.tempfile())
-        store.open()
-        timestamp = timestamper.now()
-        store.set("foo", timestamp, "bar")
-        self.assertEqual(store.get("foo"), (timestamp, "bar"))
-        self.assertEqual(store.get("loo"), (None, None))
-        store.close()
-        store.open()
-        self.assertEqual(store.get("foo"), (timestamp, "bar"))
-        store.close()
-
-    def testRange(self):
-      store = Store(filepath = self.tempfile())
-      store.open()
-      ks = ['a', 'aa', 'ab', 'ba', 'bb', 'c']
-      timestamp = timestamper.now()
-      for k in ks:
-          store.set(k, timestamp, k)
-      self.assertEqual(set(store.get_key_range('a', 'b')), set(['ba', 'bb']))
-      self.assertEqual(set(store.get_key_range('', 'c')), set(ks))
-
-    def testTransaction(self):
-        """docstring for testTransaction"""
-        store = Store(filepath = self.tempfile(), auto_commit_interval=0)
-        store.open()
-        store.begin()
-        timestamp = timestamper.now()
-        store.set('foo', timestamp, 'foo')
-        store.abort()
-        store.close()
-        store.open()
-        self.assertEqual(store.get('foo'), (None, None))
-        store.begin()
-        store.set('bar', timestamp, 'bar')
-        self.assertEqual(store.get('bar'), (timestamp, 'bar'))
-        store.commit()
-        self.assertEqual(store.get('bar'), (timestamp, 'bar'))
-        store.close()
-        store.open()
-        self.assertEqual(store.get('bar'), (timestamp, 'bar'))
-
-    def testBuffer(self):
-        key = 'foo'
-        data = 'bar'
-        store = Store(filepath = self.tempfile())
-        store.open()
-        timestamp = timestamper.now()
-        store.set(key, timestamp, buffer(data))
-        assert store.get(key) == (timestamp, data)
-
-if __name__ == '__main__':
-    unittest.main()
