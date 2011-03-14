@@ -73,7 +73,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
                 logging.debug('command: %s', cmd)
 
         logging.info('Done.')
-        logging.info('Starting proxy proesses')
+        logging.info('Starting proxy processes')
         for i, (address, port) in enumerate(proxies):
             proxy_id = 'p%d' % (i + 1)
             log_filepath = 'var/tako/log/proxy-%s.log' % proxy_id

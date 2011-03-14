@@ -83,15 +83,16 @@ class NodeServer(object):
 
     def __fetch_value(self, key, node_id):
         debug.log('key: %s, node_id: %s', key, node_id)
-        return self.__clients_for_nodes((node_id,))[0].get(key)
+        return self.__clients_for_nodes((node_id,))[0].get(key) or (None, None)
 
     def __fetch_timestamps(self, key):
         debug.log('key: %s', key)
         nodes = self.__configuration_controller.configuration.find_nodes_for_key(key)
         nodes.pop(self.node.id, None)
+        if not nodes:
+            return []
         clients = self.__clients_for_nodes(nodes)
-        timestamps = self.__internal_cluster_client.stat(clients, key)
-        return timestamps
+        return self.__internal_cluster_client.stat(clients, key)
 
     def __get_timestamp(self, env):
         try:
