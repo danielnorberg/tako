@@ -24,14 +24,16 @@ It is recommended that Tako is installed using virtualenv.
 
 First, some prerequisites:
 
+::
+
     $ apt-get install build-essential python-virtualenv python-dev libev-dev libtokyocabinet-dev
 
 Next, the virtual environment that will host the tako installation.
 
+::
+
     $ virtualenv tako
-
     $ cd tako
-
     $ bin/pip install tako
 
 
