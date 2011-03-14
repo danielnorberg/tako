@@ -52,6 +52,8 @@ Node
 
 Done! Start tako-node:
 
+::
+
     $ bin/tako-node -id <id of the node> -c <address and port of the coordinator server>
 
 Coordinator
@@ -68,12 +70,16 @@ Modify configuration file as needed.
 
 Done! Start tako-coordinator:
 
+::
+
     $ bin/tako-coordinator -cfg etc/tako.yaml
 
 Proxy
 -----
 
 Done! Start tako-proxy:
+
+::
 
     $ bin/tako-proxy -p <http port> -id <id of the proxy> -c <address and port of the coordinator server>
 
