@@ -15,7 +15,7 @@ Installation
 ============
 
 This describes the process of installing the Tako software on a single machine.
-In a typical setup this setup would be replicated on all the machines that are to form the cluster.
+In a typical setup this setup would be replicated/performed on all the machines that are to form the cluster.
 
 These instructions are written for Debian Squeeze (Stable).
 Lenny might work as well but you might hit some snags with Python 2.5.
@@ -45,15 +45,50 @@ Lastly, install the tako module and its dependencies.
     $ cd tako
     $ bin/pip install tako
 
+Now continue on to Node, Coordinator or Proxy.
+
 Node
 ----
 
+Done! Start tako-node:
+
+    $ bin/tako-node -id <id of the node> -c <address and port of the coordinator server>
 
 Coordinator
 -----------
 
+Setup a cluster configuration:
+
+::
+
+    $ mkdir etc
+    $ wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/cluster.yaml -O etc/tako.yaml
+
+Modify configuration file as needed.
+
+Done! Start tako-coordinator:
+
+    $ bin/tako-coordinator -cfg etc/tako.yaml
+
 Proxy
 -----
+
+Done! Start tako-proxy:
+
+    $ bin/tako-proxy -p <http port> -id <id of the proxy> -c <address and port of the coordinator server>
+
+Executables
+===========
+
+tako-node
+---------
+
+tako-coordinator
+----------------
+
+tako-proxy
+----------
+
 
 Sample Configuration Files
 ==========================
