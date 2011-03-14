@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='tako',
-    version='0.0.5',
+    version='0.0.6',
     packages=['tako', 'tako.utils'],
     scripts=[
         'bin/tako-node',
