@@ -4,3 +4,6 @@
 * put an epoch counter in configuration instead of using mtime as a timestamp
 * make nodeserver asynchronous
 * cythonize
+* look up node id through local ip in node server
+* automatic background data repair/replication
+* automatic background garbage collection

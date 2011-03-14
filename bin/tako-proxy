@@ -2,21 +2,28 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
 import argparse
+import logging
 import sys
 import os
-import logging
 
 from syncless import coio
 
-home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
-sys.path.insert(0, home)
+prefix = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
+sys.path.insert(0, prefix)
 
 from tako import configuration
 from tako.proxyserver import ProxyServer
 from tako.utils import debug
 from tako.utils import convert
 
+def makedirs(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
 def main():
+    global prefix
+    default_var_path = os.path.join(prefix, 'var', 'tako')
+
     parser = argparse.ArgumentParser(description="Tako Proxy")
     parser.add_argument('-p', '--port', help='port. Default = 8080', default=8080, type=int)
     parser.add_argument('-id', '--id', help='Proxy id. Default = p1', default='p1')
@@ -25,6 +32,7 @@ def main():
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-prof', '--profiling-file', help='Enable performance profiling.')
     parser.add_argument('-l', '--log-file', help='Log file.')
+    parser.add_argument('-v', '--var', help='var directory. Default = %s' % default_var_path, default=default_var_path)
 
     args = parser.parse_args()
 
@@ -38,8 +46,16 @@ def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
     debug.configure_logging('proxyserver', level, args.log_file)
 
-    logging.info('Tako Proxy Starting')
+    logging.info('Tako Proxy starting (pid:%d)', os.getpid())
     logging.info('Proxy id: %s', args.id)
+
+    try:
+        makedirs(os.path.join(args.var, 'data'))
+        makedirs(os.path.join(args.var, 'etc'))
+        makedirs(os.path.join(args.var, 'log'))
+    except Exception, e:
+        logging.critical("Failed to create var directories.")
+        exit(1)
 
     config = None
     if args.config:

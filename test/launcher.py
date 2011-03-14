@@ -25,7 +25,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
     processes = []
     try:
         for coordinator in cfg.coordinators.itervalues():
-            log_filepath = 'var/log/coordinator-%s.log' % coordinator.id
+            log_filepath = 'var/tako/log/coordinator-%s.log' % coordinator.id
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
             cmd = 'python bin/tako-coordinator -id %(id)s -cfg %(cfg)s -l %(logfile)s %(debug)s' % {
@@ -53,7 +53,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
         if cfg.target_deployment:
             nodes.update(cfg.target_deployment.nodes)
         for node_id, node in nodes.iteritems():
-            log_filepath = 'var/log/node-%s.log' % node_id
+            log_filepath = 'var/tako/log/node-%s.log' % node_id
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
             cmd = 'python bin/tako-node -id %(id)s %(coordinators)s %(profiling)s %(debug)s %(cfg)s -l %(logfile)s' % {
@@ -76,7 +76,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
         logging.info('Starting proxy proesses')
         for i, (address, port) in enumerate(proxies):
             proxy_id = 'p%d' % (i + 1)
-            log_filepath = 'var/log/proxy-%s.log' % proxy_id
+            log_filepath = 'var/tako/log/proxy-%s.log' % proxy_id
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
             cmd = 'python bin/tako-proxy -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
@@ -99,6 +99,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
             while True:
                 raw_input()
         except:
+            print
             pass
     finally:
         logging.info('Terminating processes.')

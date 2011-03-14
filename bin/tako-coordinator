@@ -7,19 +7,27 @@ import os
 import sys
 import signal
 
-home = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
-sys.path.insert(0, home)
+prefix = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
+sys.path.insert(0, prefix)
 
 from tako import configuration
 from tako.coordinatorserver import CoordinatorServer
 from tako.utils import debug
 
+def makedirs(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
 def main():
+    global prefix
+    default_var_path = os.path.join(prefix, 'var', 'tako')
+
     parser = argparse.ArgumentParser(description="Tako Coordinator")
     parser.add_argument('-id', '--id', help='Server id. Default = 1', default='c1')
     parser.add_argument('-cfg','--config', help='Config file.', default='test/local_cluster.yaml')
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-l', '--log-file', help='Log file.')
+    parser.add_argument('-v', '--var', help='var directory. Default = %s' % default_var_path, default=default_var_path)
 
     try:
         args = parser.parse_args()
@@ -41,8 +49,17 @@ def main():
         logging.error('Coordinator with id "%s" not found in configuration.', args.id)
         exit(-1)
 
-    logging.info('Tako Coordinator starting')
+    logging.info('Tako Coordinator starting (pid:%d)', os.getpid())
     logging.info('Coordinator id: %s', args.id)
+
+    try:
+        makedirs(os.path.join(args.var, 'data'))
+        makedirs(os.path.join(args.var, 'etc'))
+        makedirs(os.path.join(args.var, 'log'))
+    except Exception, e:
+        logging.critical("Failed to create var directories.")
+        exit(1)
+
     logging.info('Serving up "%s" at %s:%d', cfgpath, coordinator.address, coordinator.port)
 
     server = CoordinatorServer(args.id, cfgpath)
