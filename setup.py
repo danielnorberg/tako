@@ -27,19 +27,21 @@ setup(
     url = "https://github.com/danielnorberg/tako/",
     description = "Tako: A distributed data store.",
         long_description =      """\
-            Tako is a distributed key-value data store. It aims to provide
-            high scalability and availability through a shared nothing
-            architecture, consistent hash based data partitioning, read repair
-            with time stamping and live migration. Tako includes a http proxy
-            server that can be used to interface with a tako cluster using
-            normal HTTP GET/POST. Tako nodes communicate internally using a
-            binary protocol and the socketless and syncless libraries.
-            An included coordinator server can be used as a single point of
-            configuration to distribute cluster configuration to tako nodes
-            in a cluster.
+        Tako is a distributed key-value data store. It aims to provide high
+        scalability and availability through a shared nothing architecture,
+        consistent hash based data partitioning, read repair with time
+        stamping and live migration. An included coordinator server can be
+        used as a single point of configuration to distribute cluster
+        configuration to tako nodes in a cluster.
 
-            Tako makes use of libev/libevent/kqueue/kpoll if present.
-            Tokyo Cabinet is used for data storage.
+        Tako includes a http proxy server that can be used to
+        interface with a tako cluster using normal HTTP GET/POST.
+
+        Within a cluster, tako nodes communicate using a binary
+        protocol and the socketless and syncless libraries.
+
+        Tako makes use of libev/libevent/kqueue/kpoll if present.
+        Tokyo Cabinet is used for data storage.
         """,
     license="Apache License, Version 2.0",
     classifiers=[
