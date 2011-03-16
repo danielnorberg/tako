@@ -19,8 +19,8 @@ class ProxyServer(object):
         self.id = proxy_id
         self.address = address
         self.__http_handlers = (
-                ('/v/', {'GET':self.__values_GET, 'POST':self.__values_POST}),
-                ('/s/', {'GET':self.__stat_GET}),
+                ('/values/', {'GET':self.__values_GET, 'POST':self.__values_POST}),
+                ('/stat/', {'GET':self.__stat_GET}),
         )
         configuration_cache_directory = os.path.join(var_directory, 'etc')
         name = 'proxyserver-%s' % self.id

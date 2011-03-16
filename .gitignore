@@ -1,4 +1,7 @@
 *.pyc
+*.pyo
 var/*
 .DS_Store
 *.c
+dist/*
+*.egg-info/*

@@ -12,6 +12,8 @@ active_deployment: cluster
 deployments:
     cluster:
         read_repair: yes
+        background_healing: yes
+        background_healing_interval: 1d
         hash:
             buckets_per_key: 2
         buckets:

@@ -73,7 +73,8 @@ def _main(args):
                 exit(1)
             coordinators.append((address, port))
     try:
-        server = ProxyServer(args.id, ('localhost', args.port), explicit_configuration=config, coordinator_addresses=coordinators)
+        server = ProxyServer(args.id, ('localhost', args.port), explicit_configuration=config,
+                             coordinator_addresses=coordinators, var_directory=args.var)
         server.serve()
         while True:
             coio.sleep(1)

@@ -11,6 +11,11 @@ Tokyo Cabinet is used for data storage.
 
 Project Home: http://pypi.python.org/pypi/tako
 
+Design
+======
+
+
+
 Installation
 ============
 

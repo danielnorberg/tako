@@ -17,6 +17,8 @@ cdef class Store(object):
 
     cpdef set(self, object key, long timestamp, object value)
     cpdef get(self, key)
+    cpdef remove(self, key)
+    cpdef count(self)
 
 
     # cpdef _jump(self, cur, start)

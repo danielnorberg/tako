@@ -23,6 +23,9 @@ cdef class Deployment(object):
     cdef public dict nodes
     cdef public ConsistentHash consistent_hash
     cdef public bint read_repair_enabled
+    cdef public bint background_healing_enabled
+    cdef public object background_healing_interval
+    cdef public float background_healing_interval_seconds
     cpdef siblings(self, str node_id)
     cpdef buckets_for_key(self, str key)
     cpdef representation(self)

@@ -1,49 +1,35 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
-from models cimport Deployment, Node
-from configuration cimport Configuration
-from store cimport Store
+from tako.models cimport Deployment, Node
+from tako.configuration cimport Configuration
+from tako.store cimport Store
 from tako.utils.httpserver cimport HttpServer
 
 cdef class NodeServer(object):
-    cdef str SET_VALUE
-    cdef str GET_VALUE
-    cdef str GET_TIMESTAMP
-
     cdef str id
-    cdef str var_directory
-    cdef object store_file
-    cdef str configuration_directory
-    cdef object configuration_cache
-    cdef public Store store
-    cdef dict node_clients
-    cdef tuple http_handlers
-    cdef object coordinator_client
-    cdef Configuration configuration
-    cdef Deployment deployment
-    cdef bint read_repair_enabled
     cdef Node node
-    cdef unsigned int http_port
-    cdef object internal_server
-    cdef HttpServer http_server
-    cdef list coordinators
-    cdef object internal_cluster_client
 
-    # cdef evaluate_new_configuration(self, new_configuration)
-    # cdef set_configuration(self, new_configuration)
-    # cdef initialize_node_client_pool(self)
-    cdef clients_for_nodes(self, nodes)
+    cdef Store __store
+    cdef dict __node_clients
+    cdef object __internal_cluster_client
+    cdef Configuration __configuration
+    cdef object __configuration_controller
 
-    cpdef serve(self)
+    cdef bint __read_repair_enabled
+    cdef bint __background_healing_enabled
+    cdef float __background_healing_interval_seconds
 
-    cdef fetch_value(self, key, node)
-    cdef fetch_timestamps(self, key)
-    cdef get_timestamp(self, env)
-    cdef propagate(self, object key, long timestamp, object value, object target_nodes)
-    cdef read_repair(self, object key, long timestamp, object value)
+    cdef object __internal_server
+    cdef HttpServer __http_server
 
-    cdef quote(self, key)
-    cdef unquote(self, path)
-    cpdef store_GET(self, start_response, path, body, env)
-    cpdef store_POST(self, start_response, path, body, env)
+    cdef __read_repair(self, object key, long timestamp, object value)
+    cdef __fetch_timestamps(self, object key)
+    cdef __clients_for_nodes(self, object node_ids)
+
+    cdef __fetch_value(self, object key, object node_id)
+    cdef __get_timestamp(self, env)
+    cdef __propagate(self, object key, long timestamp, object value, object target_nodes)
+
+    cdef __quote(self, key)
+    cdef __unquote(self, path)
 

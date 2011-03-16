@@ -36,10 +36,11 @@ class Store(object):
 
     def __flush(self):
         while True:
-            debug.log('Committing %d operations', self.operation_counter)
-            self.commit()
-            self.operation_counter = 0
-            self.begin()
+            if self.operation_counter > 0:
+                debug.log('Committing %d operations', self.operation_counter)
+                self.commit()
+                self.operation_counter = 0
+                self.begin()
             coio.sleep(self.auto_commit_interval)
 
     def __unpack_timestamped_data(self, data):
@@ -60,19 +61,6 @@ class Store(object):
                 key = cur.key()
         return key
 
-    def __range(self, cur, start, end):
-        keys = []
-        try:
-            endlen = len(end)
-            key = self.__jump(cur, start)
-            while key[:endlen] <= end:
-                keys.append(key)
-                cur.next()
-                key = cur.key()
-        except KeyError:
-            pass
-        return keys
-
     def set(self, key, timestamp, value):
         self.operation_counter += 1
         self.db.put(key, self.pack_timestamp(timestamp))
@@ -86,9 +74,19 @@ class Store(object):
             pass
         return (None, None)
 
-    def get_key_range(self, start_key, end_key):
+    def remove(self, key):
+        try:
+            self.db.out(key)
+        except Exception:
+            pass
+
+    def cursor(self, start_key=None):
         cur = self.db.curnew()
-        return self.__range(cur, start_key, end_key)
+        if start_key:
+            self.__jump(cur, start_key)
+        else:
+            cur.first()
+        return cur
 
     def abort(self):
         self.db.tranabort()
@@ -98,4 +96,8 @@ class Store(object):
 
     def commit(self):
         self.db.trancommit()
+
+    def count(self):
+        # Fast, calls rnum
+        return len(self.db)
 

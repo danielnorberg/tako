@@ -9,3 +9,7 @@ cdef class Client:
     cdef Configuration configuration
 
     cdef __client_for_key(self, str key)
+
+    cpdef set(self, object key, long timestamp, object value)
+    cpdef get(self, object key)
+    cpdef stat(self, object key)

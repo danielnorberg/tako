@@ -5,10 +5,12 @@
 master_coordinator: c1
 coordinators:
     c1: [localhost, 4701]
-active_deployment: cluster
+active_deployment: standalone
 deployments:
-    cluster:
+    standalone:
         read_repair: yes
+        background_healing: yes
+        background_healing_interval: '0:01:00'
         hash:
             buckets_per_key: 2
         buckets:

@@ -72,14 +72,14 @@ class Client(object):
     def is_connected(self):
         return self.has_configuration() and self.connected_node_count() > self.total_node_count() / 2.0
 
-    def set_value(self, key, timestamp, value):
+    def set(self, key, timestamp, value):
         logging.debug('key = %s, timestamp = %s', key, timestamp)
         node_client = self.__client_for_key(key)
         if not node_client:
             raise ValueNotAvailableException(key)
         return node_client.set(key, timestamp, value)
 
-    def get_value(self, key):
+    def get(self, key):
         node_client = self.__client_for_key(key)
         if not node_client:
             raise ValueNotAvailableException(key)
@@ -89,7 +89,7 @@ class Client(object):
         timestamp, value = result
         return timestamp or None, value
 
-    def stat_value(self, key):
+    def stat(self, key):
         node_client = self.__client_for_key(key)
         if not node_client:
             raise ValueNotAvailableException(key)

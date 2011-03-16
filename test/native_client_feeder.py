@@ -27,14 +27,14 @@ def feed(client):
         counter += 1
         for i in range(3):
             try:
-                new_timestamp = client.set_value(key, timestamp, value)
+                new_timestamp = client.set(key, timestamp, value)
                 if new_timestamp != timestamp:
                     logging.warning('new_timestamp != timestamp (%s != %s)', new_timestamp, timestamp)
                     logging.warning('Retrying...')
                     coio.sleep(1)
                     continue
-                fetched_timestamp, fetched_value = client.get_value(key)
-                stat_timestamp = client.stat_value(key)
+                fetched_timestamp, fetched_value = client.get(key)
+                stat_timestamp = client.stat(key)
                 if fetched_timestamp != timestamp:
                     logging.warning('fetched_timestamp != timestamp (%s != %s)', fetched_timestamp, timestamp)
                     logging.warning('Retrying...')

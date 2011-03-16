@@ -12,6 +12,11 @@ paths.setup()
 from tako.configuration import Configuration
 from tako.utils import debug
 
+def makedirs(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
     logging.info('Using configuration file: %s', configuration_filepath)
@@ -21,6 +26,11 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
     cfg = Configuration(yaml.load(open(configuration_filepath)))
 
     logging.info('Starting coordinator processes.')
+
+    var = paths.path(os.path.join('var', 'tako'))
+    makedirs(os.path.join(var, 'data'))
+    makedirs(os.path.join(var, 'etc'))
+    makedirs(os.path.join(var, 'log'))
 
     processes = []
     try:

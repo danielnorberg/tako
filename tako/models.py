@@ -1,7 +1,16 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
-from consistenthash import ConsistentHash
+from datetime import timedelta
+import logging
 
+from consistenthash import ConsistentHash
+from utils.timedelta_parser import parse_timedelta
+
+def timedelta_total_seconds(td):
+    return (td.microseconds + (td.seconds + td.days * 24.0 * 3600.0) * 10**6) / 10**6
+
+def timedelta_days(td):
+    return timedelta_total_seconds(td) / (24.0 * 3600.0)
 
 class Node(object):
     """docstring for Node"""
@@ -67,9 +76,14 @@ class Deployment(object):
             nodes = dict((node_id, Node(node_id, bucket_id, address, http_port, raw_port)) for node_id, (address, http_port, raw_port) in bucket.iteritems())
             self.buckets[bucket_id] = Bucket(bucket_id, nodes)
         self.nodes = dict((node_id, node) for bucket in self.buckets.itervalues() for node_id, node in bucket.nodes.iteritems())
-        hash_configuration = representation.get('hash', {})
-        self.consistent_hash = ConsistentHash(self.buckets.values(), **hash_configuration)
+        self.consistent_hash = ConsistentHash(self.buckets.values(), **representation.get('hash', {}))
         self.read_repair_enabled = representation.get('read_repair', True)
+        self.background_healing_enabled = representation.get('background_healing', True)
+        self.background_healing_interval = parse_timedelta(representation.get('background_healing_interval', '1d'))
+        self.background_healing_interval_seconds = timedelta_total_seconds(self.background_healing_interval)
+        if self.background_healing_enabled:
+            if not self.background_healing_interval_seconds:
+                raise Exception('Parsing error')
 
     def siblings(self, node_id):
         """docstring for siblings"""
@@ -85,6 +99,8 @@ class Deployment(object):
     def representation(self):
         spec = {
                 'read_repair': self.read_repair_enabled,
+                'background_healing':self.background_healing_enabled,
+                'background_healing_interval':str(self.background_healing_interval),
                 'hash': {
                         'buckets_per_key': self.consistent_hash.buckets_per_key,
                 },

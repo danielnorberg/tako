@@ -23,9 +23,11 @@ class TestConfiguration(testcase.TestCase):
                 timestamp = timestamper.from_seconds(os.path.getmtime(filepath))
                 helper_loaded_configuration = try_load_file(filepath)
                 manually_loaded_configuration = Configuration(loaded_representation, timestamp)
-                self.assertEqual(manually_loaded_configuration.representation(), loaded_representation)
                 self.assertEqual(manually_loaded_configuration.representation(), helper_loaded_configuration.representation())
                 self.assertEqual(manually_loaded_configuration.timestamp, helper_loaded_configuration.timestamp)
+                # repr(conf(repr(conf(file)))) == repr(conf(file))
+                self.assertEqual(Configuration(helper_loaded_configuration.representation(), helper_loaded_configuration.timestamp).representation(),
+                                 helper_loaded_configuration.representation())
 
 if __name__ == '__main__':
     import unittest
