@@ -63,26 +63,29 @@ First, download the million song subset. The infochimps mirror might be faster.
 Using tako-cluster we can quickly get a tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080.
 
 ::
+    # Download configuration file
+    mkdir etc
+    wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/local_cluster.yaml -O etc/local_tako.yaml
 
     # Start the local tako cluster
-    $ tako/bin/tako-cluster tako/etc/local_cluster.yaml -p 8080
+    tako/bin/tako-cluster tako/etc/local_cluster.yaml -p 8080
 
 Now we'll populate the tako cluster using the dataset and then pull it back out again. If you're running a different tako cluster setup, simply adjust the proxy address and port below.
 
 ::
 
     # Unpack the dataset
-    $ tar xz millionsongsubset.tar.gz
+    tar xz millionsongsubset.tar.gz
 
     # Upload the dataset into the tako cluster using wget and a tako proxy
-    $ for f in `find MillionSongSubset -name '*.h5'`; do wget -nv -O /dev/null --post-file=$f http://localhost:8080/values/$(basename $f); done
+    for f in `find MillionSongSubset -name '*.h5'`; do wget -nv -O /dev/null --post-file=$f http://localhost:8080/values/$(basename $f); done
 
     # Download the dataset again...
-    $ mkdir fetched
-    $ for f in `find MillionSongSubset -name '*.h5'`; do wget -P fetched -nv http://localhost:8080/values/$(basename $f); done
+    mkdir fetched
+    for f in `find MillionSongSubset -name '*.h5'`; do wget -P fetched -nv http://localhost:8080/values/$(basename $f); done
 
     # ...and compare all the files, making sure that they survived the roundtrip intact.
-    $ for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
+    for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
 
 
 Executables & Usage
@@ -98,11 +101,6 @@ tako-node
 
 tako-coordinator
 ----------------
-
-::
-
-    $ mkdir etc
-    $ wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/cluster.yaml -O etc/tako.yaml
 
 ::
     $ bin/tako-coordinator -cfg etc/tako.yaml
