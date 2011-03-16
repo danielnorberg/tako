@@ -45,7 +45,7 @@ def main():
 
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
-    debug.configure_logging('nodeserver', level, args.log_file)
+    debug.configure_logging('tako-node', level, args.log_file)
 
     logging.info('Tako Node starting (pid:%d)', os.getpid())
     logging.info('Node id: %s', args.id)

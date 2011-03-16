@@ -36,7 +36,7 @@ def main():
         exit(-1)
 
     level = logging.DEBUG if args.debug else logging.INFO
-    debug.configure_logging('coordinatorserver', level, args.log_file)
+    debug.configure_logging('tako-coordinator', level, args.log_file)
 
     cfgpath = os.path.abspath(args.config)
     cfg = configuration.try_load_file(cfgpath)

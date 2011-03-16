@@ -6,42 +6,43 @@ import logging
 import os
 import signal
 import subprocess
+import sys
 import time
-import yaml
 
-import paths
-paths.setup()
+prefix = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
+sys.path.insert(0, prefix)
 
-from tako.configuration import Configuration
+from tako import configuration
 from tako.utils import debug
 
 def makedirs(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
-
 def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[]):
+    logging.info('Configuration file: %s', configuration_filepath)
 
-    logging.info('Using configuration file: %s', configuration_filepath)
-
-    os.chdir(paths.home)
     debug_arg = '-d' if debug else ''
-    cfg = Configuration(yaml.load(open(configuration_filepath)))
+    cfg = configuration.try_load_file(configuration_filepath)
+    if not cfg:
+        logging.critical('Failed to load configuration file: %s', configuration_filepath)
+        exit(1)
 
-    logging.info('Starting coordinator processes.')
+    logging.info('Creating var directories.')
 
-    var = paths.path(os.path.join('var', 'tako'))
+    var = os.path.join(prefix, 'var', 'tako')
     makedirs(os.path.join(var, 'data'))
     makedirs(os.path.join(var, 'etc'))
     makedirs(os.path.join(var, 'log'))
 
     processes = []
     try:
+        logging.info('Starting coordinator processes.')
         for coordinator in cfg.coordinators.itervalues():
-            log_filepath = 'var/tako/log/coordinator-%s.log' % coordinator.id
+            log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'coordinator-%s.log' % coordinator.id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = 'python bin/tako-coordinator -id %(id)s -cfg %(cfg)s -l %(logfile)s %(debug)s' % {
+            cmd = 'python tako-coordinator -id %(id)s -cfg %(cfg)s -l %(logfile)s %(debug)s' % {
                 'id':coordinator.id,
                 'cfg':configuration_filepath,
                 'logfile':log_filepath,
@@ -52,25 +53,29 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
             logging.info('Launched Coordinator "%s" (%s:%s) (pid: %d)',
                          coordinator.id, coordinator.address, coordinator.port, proc.pid)
             logging.debug('command: %s', cmd)
+        logging.info('Done.')
 
+        # Sleep to let the coordinator get up before unleashing the nodes
         time.sleep(1)
 
-        logging.info('Done.')
+        # Configuration source parameters for nodes and proxies
+        cfg_arg = '' if cfg.coordinators else '-cfg %s' % configuration_filepath
+        coordinator_args = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for
+                                        coordinator in cfg.coordinators.itervalues()])
+
+
         logging.info('Starting node processes.')
         node_profiling_arg = lambda nodeid: '-p nodeserver-%s.prof' % nodeid if profiling else ''
-        cfg_arg = '' if cfg.coordinators else '-cfg %s' % configuration_filepath
-        coordinator_arguments = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for
-                                        coordinator in cfg.coordinators.itervalues()])
         nodes = dict(cfg.active_deployment.nodes)
         if cfg.target_deployment:
             nodes.update(cfg.target_deployment.nodes)
         for node_id, node in nodes.iteritems():
-            log_filepath = 'var/tako/log/node-%s.log' % node_id
+            log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'node-%s.log' % node_id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = 'python bin/tako-node -id %(id)s %(coordinators)s %(profiling)s %(debug)s %(cfg)s -l %(logfile)s' % {
+            cmd = 'python tako-node -id %(id)s %(coordinators)s %(profiling)s %(debug)s %(cfg)s -l %(logfile)s' % {
                 'id':node_id,
-                'coordinators':coordinator_arguments,
+                'coordinators':coordinator_args,
                 'profiling':node_profiling_arg(node.id),
                 'debug':debug_arg,
                 'cfg':cfg_arg,
@@ -88,13 +93,13 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
         logging.info('Starting proxy processes')
         for i, port in enumerate(proxy_ports):
             proxy_id = 'p%d' % (i + 1)
-            log_filepath = 'var/tako/log/proxy-%s.log' % proxy_id
+            log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'proxy-%s.log' % proxy_id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = 'python bin/tako-proxy -p %(port)s -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
+            cmd = 'python tako-proxy -p %(port)s -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
                 'port':port,
                 'id':proxy_id,
-                'coordinators':coordinator_arguments,
+                'coordinators':coordinator_args,
                 'debug':debug_arg,
                 'cfg':cfg_arg,
                 'logfile':log_filepath
@@ -126,7 +131,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Launcher")
+    parser = argparse.ArgumentParser(description="tako-cluster\n\nA local tako cluster runner for quickly setting up and running a tako cluster locally for testing purposes.")
     parser.add_argument('configuration_file', help='Configuration file.')
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-s', '--skip', help='Skip node.', type=str, nargs='+')
@@ -135,7 +140,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     logging_level = logging.DEBUG if args.debug else logging.INFO
-    debug.configure_logging('Tako Node', logging_level)
+    debug.configure_logging('tako-cluster', logging_level)
 
     configuration_filepath = os.path.abspath(args.configuration_file)
+
+    os.chdir(os.path.join(prefix, 'bin'))
     launch(configuration_filepath, args.profiling, args.debug, args.proxy or [])

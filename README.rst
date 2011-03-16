@@ -107,10 +107,18 @@ There's lots of data sets out there that can be used to experiment with a tako c
 
 First, download the million song subset. The infochimps mirror might be faster.
 
-http://labrosa.ee.columbia.edu/millionsong/
-http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
+    http://labrosa.ee.columbia.edu/millionsong/
 
-Now we'll populate the tako cluster using the dataset and then pull it back out again. I assume that you're running a local tako cluster using tako-cluster with a proxy running on port 8080. If you're running a different setup simply adjust the proxy address and port below.
+    http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
+
+Using tako-cluster we can quickly get a tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080.
+
+::
+
+    # Start the local tako cluster
+    $ tako/bin/tako-cluster tako/etc/local_cluster.yaml -p 8080
+
+Now we'll populate the tako cluster using the dataset and then pull it back out again. If you're running a different tako cluster setup, simply adjust the proxy address and port below.
 
 ::
 
@@ -196,3 +204,38 @@ A single coordinator serves the below configuration to the node cluster.
                     n9:  [tako-node-09.domain.com, 5711, 4711]
                     n10: [tako-node-10.domain.com, 5711, 4711]
 
+
+local_cluster.yaml
+------------------
+
+    # Tako Configuration
+    #
+    # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
+    ---
+    master_coordinator: c1
+    coordinators:
+        c1: [localhost, 4701]
+    active_deployment: standalone
+    deployments:
+        standalone:
+            read_repair: yes
+            background_healing: yes
+            background_healing_interval: '1d 0:00:00'
+            hash:
+                buckets_per_key: 2
+            buckets:
+                b1:
+                    n1: [localhost, 5711, 4711]
+                    n2: [localhost, 5712, 4712]
+                b2:
+                    n3: [localhost, 5713, 4713]
+                    n4: [localhost, 5714, 4714]
+                b3:
+                    n5: [localhost, 5715, 4715]
+                    n6: [localhost, 5716, 4716]
+                b4:
+                    n7: [localhost, 5717, 4717]
+                    n8: [localhost, 5718, 4718]
+                b5:
+                    n9: [localhost, 5719, 4719]
+                    n10: [localhost, 5720, 4720]

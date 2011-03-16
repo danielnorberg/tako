@@ -44,7 +44,7 @@ def main():
 
 def _main(args):
     level = logging.DEBUG if args.debug else logging.INFO
-    debug.configure_logging('proxyserver', level, args.log_file)
+    debug.configure_logging('tako-proxy', level, args.log_file)
 
     logging.info('Tako Proxy starting (pid:%d)', os.getpid())
     logging.info('Proxy id: %s', args.id)
