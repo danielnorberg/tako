@@ -11,13 +11,9 @@ Tokyo Cabinet is used for data storage.
 
 Project Home: http://pypi.python.org/pypi/tako
 
-Design
-======
 
-
-
-Installation
-============
+Getting Started
+===============
 
 This describes the process of installing the Tako software on a single machine.
 In a typical setup this setup would be replicated/performed on all the machines that are to form the cluster.
@@ -27,8 +23,8 @@ Lenny might work as well but you might hit some snags with Python 2.5.
 
 It is recommended that Tako is installed using virtualenv.
 
-Base
-----
+Installation
+------------
 
 First, some prerequisites:
 
@@ -50,55 +46,8 @@ Lastly, install the tako module and its dependencies.
     $ cd tako
     $ bin/pip install tako
 
-Now continue on to Node, Coordinator or Proxy.
+This concludes the installation. You can now run a local test cluster using tako-cluster or use tako-node, tako-coordinator and tako-proxy to run a customized setup. For a a test run walkthrough, continue with *Test Run* below.
 
-Node
-----
-
-Done! Start tako-node:
-
-::
-
-    $ bin/tako-node -id <id of the node> -c <address and port of the coordinator server>
-
-Coordinator
------------
-
-Setup a cluster configuration:
-
-::
-
-    $ mkdir etc
-    $ wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/cluster.yaml -O etc/tako.yaml
-
-Modify configuration file as needed.
-
-Done! Start tako-coordinator:
-
-::
-
-    $ bin/tako-coordinator -cfg etc/tako.yaml
-
-Proxy
------
-
-Done! Start tako-proxy:
-
-::
-
-    $ bin/tako-proxy -p <http port> -id <id of the proxy> -c <address and port of the coordinator server>
-
-Executables
-===========
-
-tako-node
----------
-
-tako-coordinator
-----------------
-
-tako-proxy
-----------
 
 Test Run
 ========
@@ -135,6 +84,35 @@ Now we'll populate the tako cluster using the dataset and then pull it back out 
     # ...and compare all the files, making sure that they survived the roundtrip intact.
     $ for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
 
+
+Executables & Usage
+===================
+
+tako-node
+---------
+
+::
+
+    $ bin/tako-node -id <id of the node> -c <address and port of the coordinator server>
+
+
+tako-coordinator
+----------------
+
+::
+
+    $ mkdir etc
+    $ wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/cluster.yaml -O etc/tako.yaml
+
+::
+    $ bin/tako-coordinator -cfg etc/tako.yaml
+
+tako-proxy
+----------
+
+::
+
+    $ bin/tako-proxy -p <http port> -id <id of the proxy> -c <address and port of the coordinator server>
 
 
 Sample Configuration Files
@@ -207,6 +185,8 @@ A single coordinator serves the below configuration to the node cluster.
 
 local_cluster.yaml
 ------------------
+
+::
 
     # Tako Configuration
     #
