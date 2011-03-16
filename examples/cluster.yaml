@@ -3,9 +3,8 @@
 # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
 ---
 master_coordinator: c1
-
 coordinators:
-    c1: [tako-coordinator-1.domain.com, 4712]
+    c1: [tako-coordinator-1.domain, 4710]
 
 active_deployment: cluster
 
@@ -13,22 +12,22 @@ deployments:
     cluster:
         read_repair: yes
         background_healing: yes
-        background_healing_interval: 1d
+        background_healing_interval: 1d 0:00:00
         hash:
             buckets_per_key: 2
         buckets:
             b1:
-                n1:  [tako-node-01.domain.com, 5711, 4711]
-                n2:  [tako-node-02.domain.com, 5711, 4711]
+                n1:  [tako-node-01.domain, 5711, 4711]
+                n2:  [tako-node-02.domain, 5711, 4711]
             b2:
-                n3:  [tako-node-03.domain.com, 5711, 4711]
-                n4:  [tako-node-04.domain.com, 5711, 4711]
+                n3:  [tako-node-03.domain, 5711, 4711]
+                n4:  [tako-node-04.domain, 5711, 4711]
             b3:
-                n5:  [tako-node-05.domain.com, 5711, 4711]
-                n6:  [tako-node-06.domain.com, 5711, 4711]
+                n5:  [tako-node-05.domain, 5711, 4711]
+                n6:  [tako-node-06.domain, 5711, 4711]
             b4:
-                n7:  [tako-node-07.domain.com, 5711, 4711]
-                n8:  [tako-node-08.domain.com, 5711, 4711]
+                n7:  [tako-node-07.domain, 5711, 4711]
+                n8:  [tako-node-08.domain, 5711, 4711]
             b5:
-                n9:  [tako-node-09.domain.com, 5711, 4711]
-                n10: [tako-node-10.domain.com, 5711, 4711]
+                n9:  [tako-node-09.domain, 5711, 4711]
+                n10: [tako-node-10.domain, 5711, 4711]

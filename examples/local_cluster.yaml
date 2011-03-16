@@ -4,10 +4,12 @@
 ---
 master_coordinator: c1
 coordinators:
-    c1: [localhost, 4701]
-active_deployment: standalone
+    c1: [localhost, 4710]
+
+active_deployment: cluster
+
 deployments:
-    standalone:
+    cluster:
         read_repair: yes
         background_healing: yes
         background_healing_interval: 1d 0:00:00

@@ -46,7 +46,7 @@ Lastly, install the tako module and its dependencies.
     $ cd tako
     $ bin/pip install tako
 
-This concludes the installation. You can now run a local test cluster using tako-cluster or use tako-node, tako-coordinator and tako-proxy to run a customized setup. For a a test run walkthrough, continue with *Test Run* below.
+This concludes the installation. You can now run a local test cluster using ``tako-cluster`` or use ``tako-node``, ``tako-coordinator`` and ``tako-proxy`` to run a customized setup. For a a test run walkthrough, continue with *Test Run* below.
 
 
 Test Run
@@ -63,6 +63,7 @@ First, download the million song subset. The infochimps mirror might be faster.
 Using tako-cluster we can quickly get a tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080.
 
 ::
+
     # Download configuration file
     mkdir etc
     wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/local_cluster.yaml -O etc/local_tako.yaml
@@ -87,39 +88,13 @@ Now we'll populate the tako cluster using the dataset and then pull it back out 
     # ...and compare all the files, making sure that they survived the roundtrip intact.
     for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
 
-
-Executables & Usage
-===================
-
-tako-node
----------
-
-::
-
-    $ bin/tako-node -id <id of the node> -c <address and port of the coordinator server>
-
-
-tako-coordinator
-----------------
-
-::
-    $ bin/tako-coordinator -cfg etc/tako.yaml
-
-tako-proxy
-----------
-
-::
-
-    $ bin/tako-proxy -p <http port> -id <id of the proxy> -c <address and port of the coordinator server>
-
-
 Sample Configuration Files
 ==========================
 
 standalone.yaml
 ---------------
 
-This configuration sets up a single stand-alone node.
+This configuration sets up a single stand-alone node. Read repair and background healing is not possible in this setup and are thus disabled.
 
 ::
 
@@ -129,6 +104,7 @@ This configuration sets up a single stand-alone node.
     deployments:
         standalone:
             read_repair: no
+            background_healing: no
             hash:
                 buckets_per_key: 1
             buckets:
@@ -139,9 +115,11 @@ cluster.yaml
 ------------
 
 This configuration sets up 10 nodes in 5 buckets, 2 nodes per bucket.
-The replication factor buckets_per_key is set to 2 which causes every
+The replication factor ``buckets_per_key`` is set to 2 which causes every
 key-value pair to be replicated across 2 buckets with 2 nodes for a total
-of 4 nodes. Read repair is enabled.
+of 4 nodes.
+
+Both read repair and background healing is enabled, with the background healing scheduled to be performed at 24 hour intervals. Larger data sets typically need larger intervals, otherwise the background healing will take up too much resources simply to go through all the key/value pairs and communicate with peers.
 
 A single coordinator serves the below configuration to the node cluster.
 
@@ -152,37 +130,39 @@ A single coordinator serves the below configuration to the node cluster.
     # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
     ---
     master_coordinator: c1
-
     coordinators:
-        c1: [tako-coordinator-1.domain.com, 4712]
+        c1: [tako-coordinator-1.domain, 4710]
 
     active_deployment: cluster
 
     deployments:
         cluster:
             read_repair: yes
+            background_healing: yes
+            background_healing_interval: 1d 0:00:00
             hash:
                 buckets_per_key: 2
             buckets:
                 b1:
-                    n1:  [tako-node-01.domain.com, 5711, 4711]
-                    n2:  [tako-node-02.domain.com, 5711, 4711]
+                    n1:  [tako-node-01.domain, 5711, 4711]
+                    n2:  [tako-node-02.domain, 5711, 4711]
                 b2:
-                    n3:  [tako-node-03.domain.com, 5711, 4711]
-                    n4:  [tako-node-04.domain.com, 5711, 4711]
+                    n3:  [tako-node-03.domain, 5711, 4711]
+                    n4:  [tako-node-04.domain, 5711, 4711]
                 b3:
-                    n5:  [tako-node-05.domain.com, 5711, 4711]
-                    n6:  [tako-node-06.domain.com, 5711, 4711]
+                    n5:  [tako-node-05.domain, 5711, 4711]
+                    n6:  [tako-node-06.domain, 5711, 4711]
                 b4:
-                    n7:  [tako-node-07.domain.com, 5711, 4711]
-                    n8:  [tako-node-08.domain.com, 5711, 4711]
+                    n7:  [tako-node-07.domain, 5711, 4711]
+                    n8:  [tako-node-08.domain, 5711, 4711]
                 b5:
-                    n9:  [tako-node-09.domain.com, 5711, 4711]
-                    n10: [tako-node-10.domain.com, 5711, 4711]
-
+                    n9:  [tako-node-09.domain, 5711, 4711]
+                    n10: [tako-node-10.domain, 5711, 4711]
 
 local_cluster.yaml
 ------------------
+
+Like ``cluster.yaml`` but written to run locally on a single machine using ``tako-cluster``. Note that every node uses different ports.
 
 ::
 
@@ -193,9 +173,9 @@ local_cluster.yaml
     master_coordinator: c1
     coordinators:
         c1: [localhost, 4701]
-    active_deployment: standalone
+    active_deployment: cluster
     deployments:
-        standalone:
+        cluster:
             read_repair: yes
             background_healing: yes
             background_healing_interval: '1d 0:00:00'
