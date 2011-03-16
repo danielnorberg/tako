@@ -99,6 +99,7 @@ This configuration sets up a single stand-alone node. Read repair and background
 ::
 
     # Tako Configuration
+    # standalone.yaml
     ---
     active_deployment: standalone
     deployments:
@@ -126,7 +127,7 @@ A single coordinator serves the below configuration to the node cluster.
 ::
 
     # Tako Configuration
-    #
+    # cluster.yaml
     # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
     ---
     master_coordinator: c1
@@ -167,7 +168,7 @@ Like ``cluster.yaml`` but written to run locally on a single machine using ``tak
 ::
 
     # Tako Configuration
-    #
+    # local_cluster.yaml
     # NOTE: The contents of this file may be json-serialized. For dictionary keys, only use strings.
     ---
     master_coordinator: c1
