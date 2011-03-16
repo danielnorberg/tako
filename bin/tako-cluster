@@ -42,7 +42,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
             log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'coordinator-%s.log' % coordinator.id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = 'python tako-coordinator -id %(id)s -cfg %(cfg)s -l %(logfile)s %(debug)s' % {
+            cmd = '%(python)s tako-coordinator -id %(id)s -cfg %(cfg)s -l %(logfile)s %(debug)s' % {
+                'python':sys.executable,
                 'id':coordinator.id,
                 'cfg':configuration_filepath,
                 'logfile':log_filepath,
@@ -73,7 +74,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
             log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'node-%s.log' % node_id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = 'python tako-node -id %(id)s %(coordinators)s %(profiling)s %(debug)s %(cfg)s -l %(logfile)s' % {
+            cmd = '%(python)s tako-node -id %(id)s %(coordinators)s %(profiling)s %(debug)s %(cfg)s -l %(logfile)s' % {
+                'python':sys.executable,
                 'id':node_id,
                 'coordinators':coordinator_args,
                 'profiling':node_profiling_arg(node.id),
@@ -96,7 +98,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
             log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'proxy-%s.log' % proxy_id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = 'python tako-proxy -p %(port)s -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
+            cmd = '%(python)s tako-proxy -p %(port)s -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
+                'python':sys.executable,
                 'port':port,
                 'id':proxy_id,
                 'coordinators':coordinator_args,
