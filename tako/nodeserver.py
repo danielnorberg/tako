@@ -119,7 +119,7 @@ class NodeServer(object):
         newer = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps
                  if remote_timestamp and remote_timestamp > timestamp]
 
-        if __debug__: logging.debug('newer: %s', newer)
+        if __debug__: logging.debug('newer: %s', [client.tag for client, remote_timestamp in newer])
         if newer:
             latest_client, latest_timestamp = newer[-1]
             latest_timestamp, latest_value = self.__fetch_value(key, latest_client.tag)
@@ -131,7 +131,7 @@ class NodeServer(object):
 
         older = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps
                  if remote_timestamp != None and remote_timestamp < timestamp]
-        if __debug__: logging.debug('older: %s', older)
+        if __debug__: logging.debug('older: %s', [client.tag for client, remote_timestamp in older])
         if older:
             older_node_ids = [client.tag for (client, remote_timestamp) in older]
             self.__propagate(key, timestamp, value, older_node_ids)
@@ -238,6 +238,7 @@ class NodeServer(object):
         scan_count = 0
         start_time = time.time()
         last_time = start_time
+        elapsed_time = 0
 
         logging.info('Starting store healing. Total %d keys.', total_count)
 
@@ -250,7 +251,10 @@ class NodeServer(object):
                 key = cursor.key()
             except StopIteration:
                 break
+            except KeyError, e:
+                logging.warning('KeyError: %s', e)
             except Exception, e:
+                logging.warning('TC Exception: %s', e)
                 # Not supposed to get this... pytc is broken.
                 pass
             if not key:

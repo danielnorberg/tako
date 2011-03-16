@@ -10,7 +10,7 @@ deployments:
     standalone:
         read_repair: yes
         background_healing: yes
-        background_healing_interval: '0:01:00'
+        background_healing_interval: '0:10:00'
         hash:
             buckets_per_key: 2
         buckets:

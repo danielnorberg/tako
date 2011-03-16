@@ -82,10 +82,13 @@ class Store(object):
 
     def cursor(self, start_key=None):
         cur = self.db.curnew()
-        if start_key:
-            self.__jump(cur, start_key)
-        else:
-            cur.first()
+        try:
+            if start_key:
+                self.__jump(cur, start_key)
+            else:
+                cur.first()
+        except KeyError:
+            pass
         return cur
 
     def abort(self):
