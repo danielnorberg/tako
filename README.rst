@@ -68,7 +68,7 @@ Using tako-cluster we can quickly get a Tako cluster up and running on a single 
     wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/local_cluster.yaml -O etc/local_cluster.yaml
 
     # Start the local tako cluster
-    tako/bin/tako-cluster tako/etc/local_cluster.yaml -p 8080
+    bin/tako-cluster etc/local_cluster.yaml -p 8080
 
 Now we'll populate the Tako cluster using the dataset and then pull it back out again. If you're running a different Tako cluster setup, simply adjust the proxy address and port below.
 
