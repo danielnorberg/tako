@@ -4,11 +4,12 @@ from setuptools import setup
 
 setup(
     name='tako',
-    version='0.0.8',
+    version='0.0.9',
     packages=['tako', 'tako.utils'],
     scripts=[
-        'bin/tako-node',
+        'bin/tako-cluster',
         'bin/tako-coordinator',
+        'bin/tako-node',
         'bin/tako-proxy'
     ],
 

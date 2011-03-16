@@ -59,13 +59,13 @@ First, download the million song subset. The infochimps mirror might be faster.
 
     http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
 
-Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080.
+Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080. Note: running a sizable tako cluster locally can be resource intensive. Run a smaller cluster if using a *limited* machine.
 
 ::
 
     # Download configuration file
     mkdir etc
-    wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/local_cluster.yaml -O etc/local_tako.yaml
+    wget --no-check-certificate https://github.com/danielnorberg/tako/raw/master/examples/local_cluster.yaml -O etc/local_cluster.yaml
 
     # Start the local tako cluster
     tako/bin/tako-cluster tako/etc/local_cluster.yaml -p 8080
