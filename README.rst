@@ -1,16 +1,15 @@
 Tako
 ====
-Tako is a distributed key-value data store. It aims to provide high scalability and availability through a shared nothing architecture, consistent hash based data partitioning, read repair with time stamping and live migration. An included coordinator server can be used as a single point of configuration to distribute cluster configuration to tako nodes in a cluster.
+Tako is a distributed key-value data store. It aims to provide high scalability and availability through a shared nothing architecture, data partitioning using consistent hashing, read repair with time stamping, automatic background healing and live migration. An included coordinator server can be used as a single point of configuration to distribute cluster configuration to Tako nodes in a cluster.
 
-Tako includes a http proxy server that can be used to interface with a tako cluster using normal HTTP GET/POST.
+Tako includes a http proxy server that can be used to interface with a Tako cluster using normal HTTP GET/POST.
 
-Within a cluster, tako nodes communicate using a binary protocol and the socketless and syncless libraries.
+Within a cluster, Tako nodes communicate using a binary protocol and the socketless and syncless libraries.
 
 Tako makes use of libev/libevent/kqueue/kpoll if present.
 Tokyo Cabinet is used for data storage.
 
 Project Home: http://pypi.python.org/pypi/tako
-
 
 Getting Started
 ===============
@@ -32,14 +31,14 @@ First, some prerequisites:
 
     $ apt-get install build-essential python-virtualenv python-dev libev-dev libtokyocabinet-dev
 
-Next, the virtual environment that will host the tako installation.
+Next, the virtual environment that will host the Tako installation.
 (Note: A default setup of Tako will need write permissions to this directory.)
 
 ::
 
     $ virtualenv tako
 
-Lastly, install the tako module and its dependencies.
+Lastly, install ``tako`` and its dependencies.
 
 ::
 
@@ -52,7 +51,7 @@ This concludes the installation. You can now run a local test cluster using ``ta
 Test Run
 ========
 
-There's lots of data sets out there that can be used to experiment with a tako cluster, but I like music so I'm going to use the million song dataset subset. If you have a lot of time and diskspace and/or machines, try out the full data set and let me know about it =)
+There's lots of data sets out there that can be used to experiment with a Tako cluster, but I like music so I'm going to use the million song dataset subset. If you have a lot of time and diskspace and/or machines, try out the full data set and let me know about it =)
 
 First, download the million song subset. The infochimps mirror might be faster.
 
@@ -60,7 +59,7 @@ First, download the million song subset. The infochimps mirror might be faster.
 
     http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
 
-Using tako-cluster we can quickly get a tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080.
+Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080.
 
 ::
 
@@ -71,14 +70,14 @@ Using tako-cluster we can quickly get a tako cluster up and running on a single 
     # Start the local tako cluster
     tako/bin/tako-cluster tako/etc/local_cluster.yaml -p 8080
 
-Now we'll populate the tako cluster using the dataset and then pull it back out again. If you're running a different tako cluster setup, simply adjust the proxy address and port below.
+Now we'll populate the Tako cluster using the dataset and then pull it back out again. If you're running a different Tako cluster setup, simply adjust the proxy address and port below.
 
 ::
 
     # Unpack the dataset
     tar xz millionsongsubset.tar.gz
 
-    # Upload the dataset into the tako cluster using wget and a tako proxy
+    # Upload the dataset into the Tako cluster using wget and a Tako proxy
     for f in `find MillionSongSubset -name '*.h5'`; do wget -nv -O /dev/null --post-file=$f http://localhost:8080/values/$(basename $f); done
 
     # Download the dataset again...
@@ -87,6 +86,36 @@ Now we'll populate the tako cluster using the dataset and then pull it back out 
 
     # ...and compare all the files, making sure that they survived the roundtrip intact.
     for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
+
+Maintenance
+===========
+
+Tako is designed to not need maintenance downtime. However, Tako does not configure itself. Reconfiguring a cluster by e.g. adding nodes to handle more traffic/data or replace broken machines entails modifying the configuration file and either using the coordinator server to distribute the new configuration to all nodes or distributing it manually through other means.
+
+The background healing mechanism cleans out garbage from nodes and distributes data within the cluster. This process, if enabled, is entirely automatic and one only need to take care to let at least one healing cycle run its course between cluster reconfigurations where nodes are removed the ensure that all inserted key/values are preserved. Adding nodes to a cluster can be done at any time without waiting for the healing mechanism to complete.
+
+Key Concepts
+============
+
+Key/Value with Timestamps
+-------------------------
+Tako stores key/value pairs with timestamps and provides two operations: get and set.
+
+Consistent Hashing
+------------------
+The data in a Tako cluster is partitioned using consistent hashing. This provides a number of beneficial features. Firstly, just by knowing the configuration of the cluster anyone can find out where the data for a particular key is stored without asking a central server. The coordinator server simply distributes the configuration data and all nodes can continue functioning even if the coordinator is down. Secondly, adding or removing nodes doesn't entail spending a lot of time repartitioning the data, thus enabling live migration.
+
+Tako nodes in a cluster are organized into buckets and key/value data is then hashed into these buckets. The nodes in a bucket are mirrors. A only needs to communicate with its mirror nodes and nodes in its neighbor buckets. The number of neighbor buckets has an upper limit of couple of hundreds (depending on the hash configuration parameters) regardless of the size of the cluster, which  ensures that even for massive clusters of thousands or tens of thousands of machines, a node can keep persistent connections to its peers.
+
+Read Repair & Background Healing
+--------------------------------
+When receiving a request for a value, a node will query its peers for timestamps for that key. If any of its peers has data with a newer timestamp, it will fetch the most recent value from that peer, store it, distribute it to any peers that had older timestamps and return it. The background healing mechanism takes this a step further by simply providing a task that runs on every node and periodically iterating through all key/value pairs of node and applying the above read repair operation. This eliminates the need to use separate logs to keep track of data to distribute and is very robust when compared to other replication mechanisms such as master/slave replication. As part of the background healing, key/values are also garbage collected.
+
+
+Developing
+==========
+
+Start out by looking at ``tako/nodeserver.py``, it is the heart of Tako and implements most of the interesting parts of the system.
 
 Sample Configuration Files
 ==========================
