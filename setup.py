@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='tako',
-    version='0.0.9',
+    version='0.0.10',
     packages=['tako', 'tako.utils'],
     scripts=[
         'bin/tako-cluster',
