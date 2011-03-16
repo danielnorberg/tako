@@ -59,7 +59,7 @@ First, download the million song subset. The infochimps mirror might be faster.
 
     http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
 
-Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080. Note: running a sizable tako cluster locally can be resource intensive. Run a smaller cluster if using a *limited* machine.
+Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080. Note: running a sizable tako cluster locally can be resource intensive. Run a smaller cluster if using a machine with limited resources, e.g. a VirtualBox/VMWare instance.
 
 ::
 
@@ -75,7 +75,7 @@ Now we'll populate the Tako cluster using the dataset and then pull it back out 
 ::
 
     # Unpack the dataset
-    tar xz millionsongsubset.tar.gz
+    tar xzf millionsongsubset.tar.gz
 
     # Upload the dataset into the Tako cluster using wget and a Tako proxy
     for f in `find MillionSongSubset -name '*.h5'`; do wget -nv -O /dev/null --post-file=$f http://localhost:8080/values/$(basename $f); done
@@ -86,6 +86,14 @@ Now we'll populate the Tako cluster using the dataset and then pull it back out 
 
     # ...and compare all the files, making sure that they survived the roundtrip intact.
     for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
+
+Data Access
+===========
+
+Data in a Tako cluster is typically accessed through proxy servers by GET and POST to a URL of the form::
+
+    http://proxy-server.domain:port/values/key
+
 
 Key Concepts
 ============
