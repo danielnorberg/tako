@@ -321,11 +321,11 @@ class NodeServer(object):
         self.__healing_task = coio.stackless.tasklet(self.__healing_task_loop)()
 
         logging.info('Internal API: %s:%s' % (self.node.address, self.node.raw_port))
-        self.__internal_server = service.Server(listener=(self.node.address, self.node.raw_port),
+        self.__internal_server = service.Server(listener=('', self.node.raw_port),
                                                 services=(internal_service, public_service))
         self.__internal_server.serve()
 
         logging.info('Public HTTP API: %s:%s' % (self.node.address, self.node.http_port))
-        self.__http_server = httpserver.HttpServer(listener=(self.node.address, self.node.http_port),
+        self.__http_server = httpserver.HttpServer(listener=('', self.node.http_port),
                                                    handlers=http_handlers)
         self.__http_server.serve()

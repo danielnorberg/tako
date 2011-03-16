@@ -1,3 +1,6 @@
+#! /usr/bin/env python
+# -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
+
 import argparse
 import logging
 import os
@@ -17,7 +20,7 @@ def makedirs(path):
         os.makedirs(path)
 
 
-def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
+def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[]):
 
     logging.info('Using configuration file: %s', configuration_filepath)
 
@@ -54,7 +57,6 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
         logging.info('Done.')
         logging.info('Starting node processes.')
-
         node_profiling_arg = lambda nodeid: '-p nodeserver-%s.prof' % nodeid if profiling else ''
         cfg_arg = '' if cfg.coordinators else '-cfg %s' % configuration_filepath
         coordinator_arguments = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for
@@ -84,12 +86,13 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
         logging.info('Done.')
         logging.info('Starting proxy processes')
-        for i, (address, port) in enumerate(proxies):
+        for i, port in enumerate(proxy_ports):
             proxy_id = 'p%d' % (i + 1)
             log_filepath = 'var/tako/log/proxy-%s.log' % proxy_id
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = 'python bin/tako-proxy -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
+            cmd = 'python bin/tako-proxy -p %(port)s -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
+                'port':port,
                 'id':proxy_id,
                 'coordinators':coordinator_arguments,
                 'debug':debug_arg,
@@ -98,7 +101,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
             }
             proc = subprocess.Popen(cmd, shell=True)
             processes.append(proc)
-            logging.info('Launched Proxy "%s" (%s:%s) (pid: %d)', proxy_id, address, port, proc.pid)
+            logging.info('Launched Proxy "%s" (port: %s) (pid: %d)', proxy_id, port, proc.pid)
             logging.debug('command: %s', cmd)
         logging.info('Done.')
 
@@ -107,10 +110,12 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
         try:
             while True:
-                raw_input()
+                time.sleep(1)
         except:
             print
             pass
+    except KeyboardInterrupt:
+        pass
     finally:
         logging.info('Terminating processes.')
         for process in processes:
@@ -121,18 +126,16 @@ def launch(configuration_filepath, profiling=False, debug=False, proxies=[]):
 
 
 if __name__ == '__main__':
-    default_configuration_filepath = paths.path('test/current_configuration.yaml')
-
     parser = argparse.ArgumentParser(description="Launcher")
-    parser.add_argument('-c', '--configuration', help='Configuration file.', default=default_configuration_filepath)
+    parser.add_argument('configuration_file', help='Configuration file.')
     parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     parser.add_argument('-s', '--skip', help='Skip node.', type=str, nargs='+')
-    parser.add_argument('-p', '--proxy', help='Proxy Server (address port)', nargs=2, action='append')
+    parser.add_argument('-p', '--proxy', help='Proxy server Port', action='append')
     parser.add_argument('-prof', '--profiling', help='Enable profiling', action='store_true')
     args = parser.parse_args()
 
     logging_level = logging.DEBUG if args.debug else logging.INFO
     debug.configure_logging('Tako Node', logging_level)
 
-    configuration_filepath = os.path.abspath(args.configuration)
+    configuration_filepath = os.path.abspath(args.configuration_file)
     launch(configuration_filepath, args.profiling, args.debug, args.proxy or [])

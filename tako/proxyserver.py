@@ -42,7 +42,7 @@ class ProxyServer(object):
         debug.log('path: %s', path)
         key = self.__unquote(path)
         try:
-            timestamp, value = self.__client.get_value(key)
+            timestamp, value = self.__client.get(key)
         except ValueNotAvailableException:
             start_response('503 Service Unavailable', [])
             return ['']
@@ -64,7 +64,7 @@ class ProxyServer(object):
         value = body.read()
         timestamp = self.__get_timestamp(env)
         try:
-            new_timestamp = self.__client.set_value(key, timestamp, value)
+            new_timestamp = self.__client.set(key, timestamp, value)
         except ValueNotAvailableException:
             start_response('503 Service Unavailable', [])
             return ['']
@@ -84,7 +84,7 @@ class ProxyServer(object):
         key = self.__unquote(path)
 
         try:
-            timestamp = self.__client.stat_value(key)
+            timestamp = self.__client.stat(key)
         except ValueNotAvailableException:
             start_response('503 Service Unavailable', [])
             return ['']

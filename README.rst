@@ -100,6 +100,34 @@ tako-coordinator
 tako-proxy
 ----------
 
+Test Run
+========
+
+There's lots of data sets out there that can be used to experiment with a tako cluster, but I like music so I'm going to use the million song dataset subset. If you have a lot of time and diskspace and/or machines, try out the full data set and let me know about it =)
+
+First, download the million song subset. The infochimps mirror might be faster.
+
+http://labrosa.ee.columbia.edu/millionsong/
+http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
+
+Now we'll populate the tako cluster using the dataset and then pull it back out again. I assume that you're running a local tako cluster using tako-cluster with a proxy running on port 8080. If you're running a different setup simply adjust the proxy address and port below.
+
+::
+
+    # Unpack the dataset
+    $ tar xz millionsongsubset.tar.gz
+
+    # Upload the dataset into the tako cluster using wget and a tako proxy
+    $ for f in `find MillionSongSubset -name '*.h5'`; do wget -nv -O /dev/null --post-file=$f http://localhost:8080/values/$(basename $f); done
+
+    # Download the dataset again...
+    $ mkdir fetched
+    $ for f in `find MillionSongSubset -name '*.h5'`; do wget -P fetched -nv http://localhost:8080/values/$(basename $f); done
+
+    # ...and compare all the files, making sure that they survived the roundtrip intact.
+    $ for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
+
+
 
 Sample Configuration Files
 ==========================
