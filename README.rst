@@ -87,19 +87,22 @@ Now we'll populate the Tako cluster using the dataset and then pull it back out 
     # ...and compare all the files, making sure that they survived the roundtrip intact.
     for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
 
-Maintenance
-===========
-
-Tako is designed to not need maintenance downtime. However, Tako does not configure itself. Reconfiguring a cluster by e.g. adding nodes to handle more traffic/data or replace broken machines entails modifying the configuration file and either using the coordinator server to distribute the new configuration to all nodes or distributing it manually through other means.
-
-The background healing mechanism cleans out garbage from nodes and distributes data within the cluster. This process, if enabled, is entirely automatic and one only need to take care to let at least one healing cycle run its course between cluster reconfigurations where nodes are removed the ensure that all inserted key/values are preserved. Adding nodes to a cluster can be done at any time without waiting for the healing mechanism to complete.
-
 Key Concepts
 ============
 
 Key/Value with Timestamps
 -------------------------
-Tako stores key/value pairs with timestamps and provides two operations: get and set.
+Tako stores key/value pairs with timestamps and provides two operations: get and set (GET and POST).
+
+Nodes, Proxy, Coordinator
+---------------------------
+Machines in a Tako cluster are organized into nodes, proxies and coordinator(s).
+
+Nodes store all the data in the cluster. They form the bulk of a Tako cluster and function autonomously, needing only a cluster configuration file to operate fully. Nodes also include an http server enabling each node to double as a data store interface to the entire cluster.
+
+Proxies are used to HTTP POST and GET key/values into and out of the Tako cluster. They act as clients on behalf of external systems, using the internal binary protocol to communicate directly with the actual nodes within the cluster. A typical Tako setup will utilize standard HTTP server load-balancing devices to distribute requests among the set of proxy servers.
+
+Coordinators simply distribute the configuration file to the nodes and proxies, acting as a convenient single point of configuration. Both nodes and proxies cache and persist the cluster configuration locally and are as such not dependent on the coordinator(s) being online. Coordinators are normally only needed during initial setup of a cluster and during subsequent reconfiguration.
 
 Consistent Hashing
 ------------------
@@ -111,6 +114,32 @@ Read Repair & Background Healing
 --------------------------------
 When receiving a request for a value, a node will query its peers for timestamps for that key. If any of its peers has data with a newer timestamp, it will fetch the most recent value from that peer, store it, distribute it to any peers that had older timestamps and return it. The background healing mechanism takes this a step further by simply providing a task that runs on every node and periodically iterating through all key/value pairs of node and applying the above read repair operation. This eliminates the need to use separate logs to keep track of data to distribute and is very robust when compared to other replication mechanisms such as master/slave replication. As part of the background healing, key/values are also garbage collected.
 
+
+Operation
+=========
+
+This describes Tako cluster operation at a conceptual level.
+
+Maintenance
+-----------
+
+Tako is designed to not need maintenance downtime. However, Tako does not configure itself. Reconfiguring a cluster by e.g. adding nodes to handle more traffic/data or replace broken machines entails modifying the configuration file and either using the coordinator server to distribute the new configuration to all nodes or distributing it manually through other means.
+
+The background healing mechanism cleans out garbage from nodes and distributes data within the cluster. This process, if enabled, is entirely automatic and one only need to take care to let at least one healing cycle run its course between cluster reconfigurations where nodes are removed the ensure that all inserted key/values are preserved. Adding nodes to a cluster can be done at any time without waiting for the healing mechanism to complete.
+
+Migration
+---------
+
+Migration is performed in two steps.
+
+First one includes an extra deployment in the cluster configuration file, giving one *active deployment* and one *target deployment*. The *active deployment* describes the current cluster configuration that one wants to migrate *from* and the *target deployment* describes the new cluster configuration that one wants to migrate *to*. Essentially, this causes two consistent hashes to be used for purposes of data partitioning and routing, request distribution, read repair and background healing. I.e., when looking up the sets of buckets and nodes for a specific key, the union of the lookup results in both consistent hashes is used.
+
+The second step is to let the background healing mechanism run at least one cycle and then promote the *target deployment* to *active deployment*. The previous *active deployment* can be removed from the configuration file.
+
+Usage Reference
+===============
+
+A complete reference manual needs to be written. For now the best approach to understand tako is to simply go through the *Test Run* and then experiment freely.
 
 Developing
 ==========
