@@ -51,7 +51,7 @@ class ProxyServer(object):
             start_response('200 OK', [
                     ('Content-Type', 'application/octet-stream'),
                     ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp))),
-                    ('X-Timestamp', str(timestamp)),
+                    ('X-Timestamp', timestamper.dumps(timestamp)),
             ])
             return [value]
         else:
@@ -72,7 +72,7 @@ class ProxyServer(object):
         if new_timestamp:
             start_response('200 OK', [
                     ('Content-Type', 'application/octet-stream'),
-                    ('X-Timestamp', str(new_timestamp)),
+                    ('X-Timestamp', timestamper.dumps(new_timestamp)),
             ])
             return ['']
         else:

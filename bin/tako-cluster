@@ -19,7 +19,7 @@ def makedirs(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
-def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[]):
+def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[], optimize=False):
     logging.info('Configuration file: %s', configuration_filepath)
 
     debug_arg = '-d' if debug else ''
@@ -74,7 +74,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
             log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'node-%s.log' % node_id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = '%(python)s tako-node -id %(id)s %(coordinators)s %(profiling)s %(debug)s %(cfg)s -l %(logfile)s' % {
+            cmd = '%(python)s %(optimize)s tako-node -id %(id)s %(coordinators)s %(profiling)s %(debug)s %(cfg)s -l %(logfile)s' % {
+                'optimize':'-O' if optimize else '',
                 'python':sys.executable,
                 'id':node_id,
                 'coordinators':coordinator_args,
@@ -98,7 +99,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
             log_filepath = os.path.join(prefix, 'var', 'tako', 'log', 'proxy-%s.log' % proxy_id)
             with open(log_filepath, 'wb') as logfile:
                 logfile.truncate()
-            cmd = '%(python)s tako-proxy -p %(port)s -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
+            cmd = '%(python)s %(optimize)s tako-proxy -p %(port)s -id %(id)s %(coordinators)s %(debug)s %(cfg)s -l %(logfile)s' % {
+                'optimize':'-O' if optimize else '',
                 'python':sys.executable,
                 'port':port,
                 'id':proxy_id,
@@ -136,10 +138,10 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[])
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="tako-cluster\n\nA local tako cluster runner for quickly setting up and running a tako cluster locally for testing purposes.")
     parser.add_argument('configuration_file', help='Configuration file.')
-    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
-    parser.add_argument('-s', '--skip', help='Skip node.', type=str, nargs='+')
     parser.add_argument('-p', '--proxy', help='Proxy server Port', action='append')
+    parser.add_argument('-s', '--skip', help='Skip node.', type=str, nargs='+')
     parser.add_argument('-prof', '--profiling', help='Enable profiling', action='store_true')
+    parser.add_argument('-d', '--debug', help='Enable debug logging.', action='store_true')
     args = parser.parse_args()
 
     logging_level = logging.DEBUG if args.debug else logging.INFO
@@ -148,4 +150,4 @@ if __name__ == '__main__':
     configuration_filepath = os.path.abspath(args.configuration_file)
 
     os.chdir(os.path.join(prefix, 'bin'))
-    launch(configuration_filepath, args.profiling, args.debug, args.proxy or [])
+    launch(configuration_filepath, args.profiling, args.debug, args.proxy or [], not args.debug)

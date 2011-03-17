@@ -29,16 +29,16 @@ class CoordinatorClient(object):
             self.configuration_fetcher = None
 
     def __notify(self):
-        logging.debug('configuration: %s', self.configuration)
+        if __debug__: logging.debug('configuration: %s', self.configuration)
         for f in self.callbacks:
             f(self.configuration)
 
     def __fetch_configuration(self, coordinator):
-        # logging.debug('coordinator: %s', coordinator)
+        if __debug__: logging.debug('coordinator: %s', coordinator)
         url = coordinator.configuration_url()
         body, info = http.fetch(url)
         if body:
-            # logging.debug('Got representation: %s', body)
+            if __debug__: logging.debug('Got representation: %s', body)
             new_timestamp = timestamper.try_loads(info.get('x-timestamp', None))
             if new_timestamp:
                 new_configuration = configuration.try_load_json(body, timestamp=new_timestamp)

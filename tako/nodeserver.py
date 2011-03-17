@@ -13,7 +13,6 @@ from socketless import service
 import paths
 paths.setup()
 
-from utils import debug
 from utils import timestamper
 from utils import httpserver
 
@@ -165,20 +164,7 @@ class NodeServer(object):
 
     def __public_set(self, callback, key, timestamp, value):
         if __debug__: logging.debug("key: %s", key)
-        target_nodes = self.__configuration.find_nodes_for_key(key)
-        local_node = target_nodes.pop(self.node.id, None)
-        if local_node:
-            local_timestamp, local_value = self.__store.get(key)
-            if timestamp > local_timestamp:
-                if __debug__: logging.debug('Local timestamp loses: %s < %s', local_timestamp, timestamp)
-                self.__store.set(key, timestamp, value)
-                self.__propagate(key, timestamp, value, target_nodes)
-            else:
-                if __debug__: logging.debug('Local timestamp wins: %s > %s', local_timestamp, timestamp)
-                timestamp = local_timestamp
-        else:
-            logging.warning('%s not in %s', self.node.id, target_nodes)
-        logging.debug('timestamp: %s', timestamp)
+        timestamp, value = self.__read_repair(key, timestamp, value)
         callback(timestamp)
 
     def __public_stat(self, callback, key):
@@ -186,19 +172,37 @@ class NodeServer(object):
             callback(timestamp)
         self.__public_get(__get_callback, key)
 
-    def __http_stat_GET(self):
-        """docstring for __http_stat_GET"""
-        pass
+    def __http_stat_GET(self, start_response, path, body, env):
+        if __debug__: logging.debug('path: %s', path)
+        key = self.__unquote(path)
+        timestamp_a = []
+        def __callback(timestamp):
+            timestamp_a.append(timestamp)
+        self.__public_stat(__callback, key)
+        if timestamp_a[0]:
+            start_response('200 OK', [
+                    ('Content-Type', 'application/octet-stream'),
+                    ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp_a[0]))),
+                    ('X-Timestamp', timestamper.dumps(timestamp_a[0])),
+            ])
+            return [timestamper.dumps(timestamp_a[0])]
+        else:
+            start_response('404 Not Found', [])
+            return ['']
 
     def __http_values_GET(self, start_response, path, body, env):
         if __debug__: logging.debug('path: %s', path)
         key = self.__unquote(path)
-        timestamp, value = self.__public_get(key)
+        timestamp_value = []
+        def __callback(timestamp, value):
+            timestamp_value.append((timestamp, value))
+        self.__public_get(__callback, key)
+        timestamp, value = timestamp_value
         if timestamp and value:
             start_response('200 OK', [
                     ('Content-Type', 'application/octet-stream'),
                     ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp))),
-                    ('X-Timestamp', str(timestamp)),
+                    ('X-Timestamp', timestamper.dumps(timestamp)),
             ])
             return [value]
         else:
@@ -210,10 +214,14 @@ class NodeServer(object):
         key = self.__unquote(path)
         value = body.read()
         timestamp = self.__get_timestamp(env)
-        self.__public_set(key, timestamp, value)
+        timestamp_a = []
+        def __callback(result_timestamp):
+            timestamp_a.append(result_timestamp)
+        self.__get_timestamp(env)
+        self.__public_set(__callback, key, timestamp, value)
         start_response('200 OK', [
                 ('Content-Type', 'application/octet-stream'),
-                ('X-Timestamp', str(timestamp)),
+                ('X-Timestamp', str(timestamp_a[0])),
         ])
         return ['']
 
@@ -265,7 +273,7 @@ class NodeServer(object):
             if now - last_time > 5.0:
                 last_time = now
                 elapsed_time = now - start_time
-                logging.debug('Store healing in progress. Scanned %d keys. Elapsed time: %s', scan_count, timedelta(seconds=elapsed_time))
+                if __debug__: logging.debug('Store healing in progress. Scanned %d keys. Elapsed time: %s', scan_count, timedelta(seconds=elapsed_time))
             total_count = self.__store.count()
             if total_count == 0:
                 break
@@ -288,7 +296,7 @@ class NodeServer(object):
             elapsed = time.time() - start_time
             spare_seconds = self.__background_healing_interval_seconds - elapsed
             if spare_seconds > 0:
-                logging.debug('Healing task sleeping %s', timedelta(seconds=spare_seconds))
+                if __debug__: logging.debug('Healing task sleeping %s', timedelta(seconds=spare_seconds))
                 coio.sleep(spare_seconds)
 
     def serve(self):

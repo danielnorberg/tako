@@ -18,7 +18,7 @@ def fetch(url, tries=3):
     """docstring for fetch"""
     urlinfo = urlparse(url)
     pool = _connection_from_urlinfo(urlinfo)
-    logging.debug('url: %s, tries: %d', url, tries)
+    if __debug__: logging.debug('url: %s, tries: %d', url, tries)
     for i in xrange(1, tries):
         try:
             r = pool.get_url(urlinfo.path)

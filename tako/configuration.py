@@ -10,16 +10,15 @@ import os
 import paths
 paths.setup()
 
-from utils import debug
 from utils import timestamper
 from models import Coordinator, Deployment
 
+import traceback
+
 def try_load_representation(representation, timestamp=timestamper.now()):
+    logging.debug('timestamp = %s, representation = %s', timestamp, representation)
     try:
-        logging.debug(representation)
         configuration = Configuration(representation, timestamp)
-        logging.debug(configuration)
-        logging.debug(configuration.representation())
         return configuration
     except ValidationError, e:
         logging.error('Configuration is not valid: %s', e)
@@ -69,33 +68,29 @@ def try_dump_file(filepath, configuration):
 def validate_representation(representation):
     # TODO: Complete validation
     # TODO: Validate that node id's are not recycled/nodes are not changed
-    try:
-        assert 'active_deployment' in representation
-        assert 'deployments' in representation
-        assert len(representation['deployments']) > 0
-        assert representation['active_deployment'] in representation['deployments']
-        if 'target_deployment' in representation:
-            assert representation['target_deployment'] in representation['deployments']
-        for deployment_id, deployment in representation['deployments'].iteritems():
-            assert 'buckets' in deployment
-            for bucket_id, bucket in deployment['buckets'].iteritems():
-                assert len(bucket) > 0
-                for node_id, node in bucket.iteritems():
-                    assert len(node) == 3
-                    address, http_port, raw_port = node
-                    assert type(address) == str, 'type(address) == %s != str' % type(address)
-                    assert type(http_port) == int, 'type(http_port) == %s != int' % type(http_port)
-                    assert type(raw_port) == int, 'type(raw_port) == %s != int' % type(raw_port)
-        if 'master_coordinator' in representation:
-            assert representation['master_coordinator'] in representation['coordinators']
-        for coordinator_id, coordinator in representation.get('coordinators', {}).iteritems():
-            assert len(coordinator) == 2
-            address, port = coordinator
-            assert type(address) == str, 'type(address) == %s != str' % type(address)
-            assert type(port) == int, 'type(port) == %s != int' % type(port)
-    except AssertionError:
-        raise
-        # raise ValidationError()
+    if not 'active_deployment' in representation: raise ValidationError()
+    if not 'deployments' in representation: raise ValidationError()
+    if not len(representation['deployments']) > 0: raise ValidationError()
+    if not representation['active_deployment'] in representation['deployments']: raise ValidationError()
+    if 'target_deployment' in representation:
+        if not representation['target_deployment'] in representation['deployments']: raise ValidationError()
+    for deployment_id, deployment in representation['deployments'].iteritems():
+        if not 'buckets' in deployment: raise ValidationError()
+        for bucket_id, bucket in deployment['buckets'].iteritems():
+            if not len(bucket) > 0: raise ValidationError()
+            for node_id, node in bucket.iteritems():
+                if not len(node) == 3: raise ValidationError()
+                address, http_port, raw_port = node
+                if not type(address) == str: raise ValidationError('type(address) == %s != str' % type(address))
+                if not type(http_port) == int: raise ValidationError('type(http_port) == %s != int' % type(http_port))
+                if not type(raw_port) == int: raise ValidationError('type(raw_port) == %s != int' % type(raw_port))
+    if 'master_coordinator' in representation:
+        if not representation['master_coordinator'] in representation['coordinators']: raise ValidationError()
+    for coordinator_id, coordinator in representation.get('coordinators', {}).iteritems():
+        if not len(coordinator) == 2: raise ValidationError()
+        address, port = coordinator
+        if not type(address) == str: raise ValidationError('type(address) == %s != str' % type(address))
+        if not type(port) == int: raise ValidationError('type(port) == %s != int' % type(port))
 
 class ValidationError(Exception):
     def __init__(self, description=None):
@@ -113,26 +108,22 @@ class Configuration(object):
         super(Configuration, self).__init__()
         self.timestamp = timestamp
         if representation:
-            assert self.load(representation)
+            validate_representation(representation)
+            self.original_representation = representation
+            self.deployments = dict((name, Deployment(name, deployment_representation)) for name, deployment_representation in representation.get('deployments', {}).iteritems())
+            self.active_deployment_name = representation['active_deployment']
+            self.active_deployment = self.deployments[self.active_deployment_name]
+            self.target_deployment_name = representation.get('target_deployment', None)
+            self.target_deployment = self.deployments[self.target_deployment_name] if self.target_deployment_name else None
+            self.coordinators = dict((coordinator_id, Coordinator(coordinator_id, address, port)) for coordinator_id, (address, port) in representation.get('coordinators', {}).iteritems())
+            self.master_coordinator_id = representation.get('master_coordinator', None)
+            self.master_coordinator = self.coordinators.get(self.master_coordinator_id, None)
 
     def __repr__(self):
         return str(self)
 
     def __str__(self):
         return "Configuration(%s)" % self.representation()
-
-    def load(self, representation):
-        validate_representation(representation)
-        self.original_representation = representation
-        self.deployments = dict((name, Deployment(name, deployment_representation)) for name, deployment_representation in representation.get('deployments', {}).iteritems())
-        self.active_deployment_name = representation['active_deployment']
-        self.active_deployment = self.deployments[self.active_deployment_name]
-        self.target_deployment_name = representation.get('target_deployment', None)
-        self.target_deployment = self.deployments[self.target_deployment_name] if self.target_deployment_name else None
-        self.coordinators = dict((coordinator_id, Coordinator(coordinator_id, address, port)) for coordinator_id, (address, port) in representation.get('coordinators', {}).iteritems())
-        self.master_coordinator_id = representation.get('master_coordinator', None)
-        self.master_coordinator = self.coordinators.get(self.master_coordinator_id, None)
-        return True
 
     def representation(self):
         spec = {
