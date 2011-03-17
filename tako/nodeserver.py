@@ -87,13 +87,13 @@ class NodeServer(object):
         if __debug__: logging.debug('key: %s, node_id: %s', key, node_id)
         return self.__clients_for_nodes((node_id,))[0].get(key) or (None, None)
 
-    def __fetch_timestamps(self, key):
+    def __fetch_timestamps(self, key, node_ids):
         if __debug__: logging.debug('key: %s', key)
-        nodes = self.__configuration.find_nodes_for_key(key)
-        nodes.pop(self.node.id, None)
-        if not nodes:
+        node_ids = dict(node_ids)
+        node_ids.pop(self.node.id, None)
+        if not node_ids:
             return []
-        clients = self.__clients_for_nodes(nodes)
+        clients = self.__clients_for_nodes(node_ids)
         return self.__internal_cluster_client.stat(clients, key)
 
     def __get_timestamp(self, env):
@@ -111,14 +111,14 @@ class NodeServer(object):
         collector = self.__internal_cluster_client.set_collector(self.__clients_for_nodes(target_nodes), 1)
         self.__internal_cluster_client.set_async(collector, key, timestamp, value)
 
-    def __read_repair(self, key, timestamp, value):
+    def __read_repair(self, key, timestamp, value, node_ids):
         if __debug__: logging.debug('key: %s, timestamp: %s', key, timestamp)
-        remote_timestamps = self.__fetch_timestamps(key)
-        if __debug__: logging.debug('remote: %s', remote_timestamps)
+        remote_timestamps = self.__fetch_timestamps(key, node_ids)
+        if __debug__: logging.debug('remote: %s', [(client.tag, repr(remote_timestamp)) for client, remote_timestamp in remote_timestamps])
         newer = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps
                  if remote_timestamp and remote_timestamp > timestamp]
 
-        if __debug__: logging.debug('newer: %s', [client.tag for client, remote_timestamp in newer])
+        if __debug__: logging.debug('newer: %s', [(client.tag, repr(remote_timestamp)) for client, remote_timestamp in newer])
         if newer:
             latest_client, latest_timestamp = newer[-1]
             latest_timestamp, latest_value = self.__fetch_value(key, latest_client.tag)
@@ -126,13 +126,10 @@ class NodeServer(object):
             if latest_timestamp and latest_value:
                 value = latest_value
                 timestamp = latest_timestamp
-                node_ids = self.__configuration.find_nodes_for_key(key)
-                if self.node.id in node_ids:
-                    self.__store.set(key, timestamp, value)
 
         older = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps
                  if remote_timestamp != None and remote_timestamp < timestamp]
-        if __debug__: logging.debug('older: %s', [client.tag for client, remote_timestamp in older])
+        if __debug__: logging.debug('older: %s', [(client.tag, repr(remote_timestamp)) for client, remote_timestamp in older])
         if older:
             older_node_ids = [client.tag for (client, remote_timestamp) in older]
             self.__propagate(key, timestamp, value, older_node_ids)
@@ -156,15 +153,26 @@ class NodeServer(object):
         callback(timestamp or 0)
 
     def __public_get(self, callback, key):
-        if __debug__: logging.debug('key: %s', key)
-        timestamp, value = self.__store.get(key)
+        if __debug__: logging.debug("key: %s", key)
+        timestamp, value = None, None
+        node_ids = self.__configuration.find_nodes_for_key(key)
+        if self.node.id in node_ids:
+            timestamp, value = self.__store.get(key)
         if self.__read_repair_enabled:
-            timestamp, value = self.__read_repair(key, timestamp, value)
+            new_timestamp, new_value = self.__read_repair(key, timestamp, value, node_ids)
+            if new_timestamp > timestamp and self.node.id in node_ids:
+                timestamp, value = new_timestamp, new_value
+                self.__store.set(key, timestamp, value)
         callback(timestamp or 0, value)
+
 
     def __public_set(self, callback, key, timestamp, value):
         if __debug__: logging.debug("key: %s", key)
-        timestamp, value = self.__read_repair(key, timestamp, value)
+        node_ids = self.__configuration.find_nodes_for_key(key)
+        if self.__read_repair_enabled:
+            timestamp, value = self.__read_repair(key, timestamp, value, node_ids)
+        if self.node.id in node_ids:
+            self.__store.set(key, timestamp, value)
         callback(timestamp)
 
     def __public_stat(self, callback, key):
@@ -232,7 +240,7 @@ class NodeServer(object):
         else:
             timestamp, value = self.__store.get(key)
             if timestamp:
-                new_timestamp, new_value = self.__read_repair(key, timestamp, value)
+                new_timestamp, new_value = self.__read_repair(key, timestamp, value, node_ids)
                 if new_timestamp > timestamp:
                     self.__store.set(key, new_timestamp, new_value)
 
