@@ -71,6 +71,7 @@ class Store(object):
         self.db.putcat(key, value)
 
     def get(self, key):
+        self.operation_counter += 1
         try:
             data = self.db.get(key)
             return self.__unpack_timestamped_data(data)
