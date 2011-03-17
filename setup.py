@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='tako',
-    version='0.0.13',
+    version='0.0.14',
     packages=['tako', 'tako.utils'],
     scripts=[
         'bin/tako-cluster',
@@ -43,6 +43,8 @@ setup(
 
         Tako makes use of libev/libevent/kqueue/kpoll if present.
         Tokyo Cabinet is used for data storage.
+
+        Project Home: https://github.com/danielnorberg/tako
         """,
     license="Apache License, Version 2.0",
     classifiers=[
