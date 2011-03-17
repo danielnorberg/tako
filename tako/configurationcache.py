@@ -12,7 +12,6 @@ from utils import timestamper
 MAX_CONFIGURATION_HISTORY = 10
 
 class ConfigurationCache(object):
-    """docstring for ConfigurationCache"""
     def __init__(self, directory, name):
         super(ConfigurationCache, self).__init__()
         self.directory = os.path.abspath(directory)

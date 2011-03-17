@@ -4,9 +4,9 @@ active_deployment: standalone
 deployments:
     standalone:
         read_repair: no
-        background_healing: no
+        background_repair: no
         hash:
             buckets_per_key: 1
         buckets:
             b1:
-                n1: [localhost, 5711, 4711]
+                n1: [localhost, 4711]

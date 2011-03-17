@@ -7,21 +7,17 @@ from syncless import coio
 from syncless import wsgi
 
 class BadRequest(object):
-    """docstring for BadRequest"""
     def __init__(self, description=''):
         super(BadRequest, self).__init__()
         self.description = description
 
     def __str__(self):
-        """docstring for __str__"""
         return repr(self)
 
     def __repr__(self):
-        """docstring for __repr__"""
         return "BadRequest('%s')" % self.description
 
 class HttpServer(object):
-    """docstring for HttpServer"""
     def __init__(self, listener, handlers, listen_queue_size=1024):
         super(HttpServer, self).__init__()
         self.address, self.port = listener
@@ -49,10 +45,9 @@ class HttpServer(object):
         return ['']
 
     def serve(self):
-        """docstring for serve"""
         self.server_socket = coio.nbsocket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.address, self.port))
         self.server_socket.listen(self.listen_queue_size)
-        logging.debug('listening on %r' % (self.server_socket.getsockname(),))
+        if __debug__: logging.debug('listening on %r' % (self.server_socket.getsockname(),))
         wsgi.WsgiListener(self.server_socket, self.handle_request)

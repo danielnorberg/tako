@@ -13,4 +13,4 @@ deployments:
             buckets_per_key: 1
         buckets:
             b1:
-                n1: [localhost, 5711, 4711]
+                n1: [localhost, 4711]

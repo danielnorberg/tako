@@ -17,27 +17,27 @@ deployments:
             buckets_per_key: 2
         buckets:
             b1:
-                n1: [localhost, 5711, 4711]
-                n2: [localhost, 5712, 4712]
+                n1: [localhost, 4711]
+                n2: [localhost, 4712]
             b2:
-                n3: [localhost, 5713, 4713]
-                n4: [localhost, 5714, 4714]
+                n3: [localhost, 4713]
+                n4: [localhost, 4714]
     d2:
         read_repair: yes
         hash:
             buckets_per_key: 1
         buckets:
             b1:
-                n1: [localhost, 5711, 4711]
-                n2: [localhost, 5712, 4712]
+                n1: [localhost, 4711]
+                n2: [localhost, 4712]
     d3:
         read_repair: yes
         hash:
             buckets_per_key: 2
         buckets:
             b1:
-                n1: [localhost, 5711, 4711]
-                n2: [localhost, 5712, 4712]
+                n1: [localhost, 4711]
+                n2: [localhost, 4712]
             b2:
-                n3: [localhost, 5713, 4713]
-                n4: [localhost, 5714, 4714]
+                n3: [localhost, 4713]
+                n4: [localhost, 4714]

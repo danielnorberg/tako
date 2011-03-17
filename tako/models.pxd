@@ -6,11 +6,7 @@ cdef class Node(object):
     cdef public str id
     cdef public str bucket_id
     cdef public str address
-    cdef public int http_port
-    cdef public int raw_port
-    cpdef raw_address(self)
-    cpdef store_url(self)
-    cpdef stat_url(self)
+    cdef public int port
 
 cdef class Bucket(object):
     cdef public str id
@@ -23,9 +19,9 @@ cdef class Deployment(object):
     cdef public dict nodes
     cdef public ConsistentHash consistent_hash
     cdef public bint read_repair_enabled
-    cdef public bint background_healing_enabled
-    cdef public object background_healing_interval
-    cdef public float background_healing_interval_seconds
+    cdef public bint background_repair_enabled
+    cdef public object background_repair_interval
+    cdef public float background_repair_interval_seconds
     cpdef siblings(self, str node_id)
     cpdef buckets_for_key(self, str key)
     cpdef representation(self)

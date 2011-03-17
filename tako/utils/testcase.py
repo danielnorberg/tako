@@ -10,7 +10,6 @@ import logging
 class TestCase(unittest.TestCase):
 
     def setUp(self):
-        """docstring for setUp"""
         self.files = []
         self.directories = []
         self.processes = []
@@ -19,7 +18,6 @@ class TestCase(unittest.TestCase):
             self.logging_is_configured = True
 
     def tearDown(self):
-        """docstring for tearDown"""
         for process in self.processes:
             process.terminate()
         for filepath in self.files:
@@ -29,13 +27,11 @@ class TestCase(unittest.TestCase):
             shutil.rmtree(dirpath)
 
     def tempdir(self):
-        """docstring for tempdir"""
         dirpath = tempfile.mkdtemp()
         self.directories.append(dirpath)
         return dirpath
 
     def tempfile(self):
-        """docstring for tempfile"""
         handle, filepath = tempfile.mkstemp()
         os.close(handle)
         self.files.append(filepath)

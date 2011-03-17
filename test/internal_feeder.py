@@ -11,7 +11,7 @@ import paths
 paths.setup()
 
 from socketless.service import Client
-from tako.nodeserver import PublicNodeServiceProtocol
+from tako.protocols import PublicNodeServiceProtocol
 
 def sha256(v):
     sha = hashlib.sha256()
@@ -19,8 +19,6 @@ def sha256(v):
     return sha.hexdigest()
 
 def main():
-    """docstring for main"""
-
     parser = argparse.ArgumentParser(description="Tako test feeder.")
     parser.add_argument('address')
     parser.add_argument('port', type=int)
@@ -40,7 +38,7 @@ def main():
         coio.sleep(0.01)
 
     last_time = time.time()
-    print 'reading from %s' % repr(listener)
+    print 'feeding %s' % repr(listener)
     i = 0
     N = 1000
     while True:
@@ -50,7 +48,8 @@ def main():
         collector = client.set_collector(N)
         for j in xrange(N):
             key = sha256('%d:%d' % (i, j))
-            client.get_async(collector, key)
+            value = sha256(key) * 16
+            client.set_async(collector, key, value)
             i += 1
         collector.collect()
         if not client.is_connected():

@@ -8,8 +8,6 @@ from tako.utils import testcase
 from tako.consistenthash import ConsistentHash
 
 class TestConsistentHash(testcase.TestCase):
-    """docstring for TestConsistentHash"""
-
     def randomSha(self, seed):
         sha = hashlib.sha256()
         sha.update(str(seed))
@@ -17,12 +15,12 @@ class TestConsistentHash(testcase.TestCase):
 
     def testRanging(self):
         ch = ConsistentHash(buckets=[1, 2, 3], points=[
-                (10, 1),
-                (20, 2),
-                (30, 3),
-                (40, 1),
-                (50, 2),
-                (60, 3),
+            (10, 1),
+            (20, 2),
+            (30, 3),
+            (40, 1),
+            (50, 2),
+            (60, 3),
         ], buckets_per_key=2)
         x = 15
         y = 65

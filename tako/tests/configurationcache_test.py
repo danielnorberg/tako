@@ -16,14 +16,21 @@ paths.setup()
 
 class TestConfiguration(testcase.TestCase):
     def testPersistence(self):
-        """docstring for testPersistence"""
-        files = ['test/config.yaml', 'test/local_cluster.yaml', 'test/migration_1.yaml']
+        files = [
+            'test/local_cluster.yaml',
+            'test/migration_1.yaml',
+            'test/migration_2.yaml',
+            'test/migration_3.yaml',
+            'examples/cluster.yaml',
+            'examples/local_cluster.yaml',
+            'examples/standalone.yaml'
+        ]
         for f in files:
             configuration_directory = self.tempdir()
             cache = ConfigurationCache(configuration_directory, 'test')
             filepath = paths.path(f)
             cfg = configuration.try_load_file(filepath)
-            for i in xrange(0, 100):
+            for i in xrange(0, 10):
                 cfg.timestamp = timestamper.now()
                 cache.cache_configuration(cfg)
                 read_configuration = cache.get_configuration()

@@ -16,11 +16,10 @@ cdef class NodeServer(object):
     cdef object __configuration_controller
 
     cdef bint __read_repair_enabled
-    cdef bint __background_healing_enabled
-    cdef float __background_healing_interval_seconds
+    cdef bint __background_repair_enabled
+    cdef float __background_repair_interval_seconds
 
-    cdef object __internal_server
-    cdef HttpServer __http_server
+    cdef object __server
 
     cdef __read_repair(self, object key, long timestamp, object value)
     cdef __fetch_timestamps(self, object key)

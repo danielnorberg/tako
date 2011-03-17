@@ -8,7 +8,7 @@ from syncless import coio
 import paths
 paths.setup()
 
-from tako.client import Client, ValueNotAvailableException
+from tako.client import Client, NotAvailableException
 from tako.utils import debug
 
 def sha256(v):
@@ -51,7 +51,7 @@ def feed(client):
                     coio.sleep(1)
                     continue
                 break
-            except ValueNotAvailableException, e:
+            except NotAvailableException, e:
                 logging.warning(e)
                 logging.warning('Retrying...')
                 coio.sleep(1)

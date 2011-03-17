@@ -13,7 +13,6 @@ def find_root(root_name):
     return root
 
 def path(_path):
-    """docstring for path"""
     return os.path.join(home, _path)
 
 home = parent(find_root('test'))

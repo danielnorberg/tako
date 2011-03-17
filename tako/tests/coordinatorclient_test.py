@@ -16,13 +16,12 @@ from tako.utils import testcase
 
 class TestCoordinatorClient(testcase.TestCase):
     def callback(self, new_configuration):
-        # logging.debug('timestamp: %s, new_configuration: %s', new_configuration.timestamp, new_configuration)
         self.new_configuration=new_configuration
 
     def testClient(self):
         cfg_filepath = 'test/local_cluster.yaml'
         cfg = configuration.try_load_file(paths.path(cfg_filepath))
-        coordinator_server = CoordinatorServer(cfg.master_coordinator_id, cfg, paths.path(cfg_filepath))
+        coordinator_server = CoordinatorServer(cfg.master_coordinator_id, paths.path(cfg_filepath))
         coordinator_server_task = coio.stackless.tasklet(coordinator_server.serve)()
         coio.stackless.schedule()
         self.new_configuration = None

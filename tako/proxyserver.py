@@ -10,10 +10,9 @@ from utils import debug
 from utils import timestamper
 from utils import httpserver
 
-from client import Client, ValueNotAvailableException
+from client import Client, NotAvailableException
 
 class ProxyServer(object):
-    """docstring for ProxyServer"""
     def __init__(self, proxy_id, address, coordinator_addresses, explicit_configuration, var_directory='var'):
         super(ProxyServer, self).__init__()
         self.id = proxy_id
@@ -32,18 +31,12 @@ class ProxyServer(object):
         except ValueError:
             raise httpserver.BadRequest()
 
-    def __quote(self, key):
-        return urllib.quote_plus(key, safe='/&')
-
-    def __unquote(self, path):
-        return urllib.unquote_plus(path)
-
     def __values_GET(self, start_response, path, body, env):
-        debug.log('path: %s', path)
-        key = self.__unquote(path)
+        if __debug__: logging.debug('path: %s', path)
+        key = urllib.unquote_plus(path)
         try:
             timestamp, value = self.__client.get(key)
-        except ValueNotAvailableException:
+        except NotAvailableException:
             start_response('503 Service Unavailable', [])
             return ['']
 
@@ -59,13 +52,13 @@ class ProxyServer(object):
             return ['']
 
     def __values_POST(self, start_response, path, body, env):
-        debug.log("path: %s", path)
-        key = self.__unquote(path)
+        if __debug__: logging.debug("path: %s", path)
+        key = urllib.unquote_plus(path)
         value = body.read()
         timestamp = self.__get_timestamp(env)
         try:
             new_timestamp = self.__client.set(key, timestamp, value)
-        except ValueNotAvailableException:
+        except NotAvailableException:
             start_response('503 Service Unavailable', [])
             return ['']
 
@@ -80,12 +73,12 @@ class ProxyServer(object):
             return ['']
 
     def __stat_GET(self, start_response, path, body, env):
-        debug.log('path: %s', path)
-        key = self.__unquote(path)
+        if __debug__: logging.debug('path: %s', path)
+        key = urllib.unquote_plus(path)
 
         try:
             timestamp = self.__client.stat(key)
-        except ValueNotAvailableException:
+        except NotAvailableException:
             start_response('503 Service Unavailable', [])
             return ['']
 

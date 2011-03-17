@@ -14,18 +14,32 @@ from tako.utils import timestamper
 
 class TestConfiguration(testcase.TestCase):
     def testParsing(self):
-        files = ['test/config.yaml', 'test/local_cluster.yaml', 'test/migration_1.yaml', 'test/migration_2.yaml', 'test/migration_3.yaml']
+        files = [
+            'test/local_cluster.yaml',
+            'test/migration_1.yaml',
+            'test/migration_2.yaml',
+            'test/migration_3.yaml',
+            'examples/cluster.yaml',
+            'examples/local_cluster.yaml',
+            'examples/standalone.yaml'
+        ]
         for f in files:
             print
             filepath = paths.path(f)
             with open(filepath) as specfile:
+
                 loaded_representation = yaml.load(specfile)
                 timestamp = timestamper.from_seconds(os.path.getmtime(filepath))
+
                 helper_loaded_configuration = try_load_file(filepath)
                 manually_loaded_configuration = Configuration(loaded_representation, timestamp)
-                self.assertEqual(manually_loaded_configuration.representation(), helper_loaded_configuration.representation())
-                self.assertEqual(manually_loaded_configuration.timestamp, helper_loaded_configuration.timestamp)
-                # repr(conf(repr(conf(file)))) == repr(conf(file))
+
+                self.assertEqual(manually_loaded_configuration.representation(),
+                                 helper_loaded_configuration.representation())
+
+                self.assertEqual(manually_loaded_configuration.timestamp,
+                                 helper_loaded_configuration.timestamp)
+
                 self.assertEqual(Configuration(helper_loaded_configuration.representation(), helper_loaded_configuration.timestamp).representation(),
                                  helper_loaded_configuration.representation())
 

@@ -1,7 +1,6 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
 from datetime import timedelta
-import email.utils
 import logging
 import os
 import time
@@ -12,9 +11,6 @@ from socketless import service
 
 import paths
 paths.setup()
-
-from utils import timestamper
-from utils import httpserver
 
 from configurationcontroller import ConfigurationController
 from protocols import InternalNodeServiceProtocol, PublicNodeServiceProtocol
@@ -38,18 +34,18 @@ class NodeServer(object):
         self.__node_clients = {}
         self.__internal_cluster_client = service.MulticastClient(InternalNodeServiceProtocol())
         configuration_directory = os.path.join(var_directory, 'etc')
-        self.__background_healing_enabled = False
-        self.__background_healing_cycle_length_seconds = None
+        self.__background_repair_enabled = False
+        self.__background_repair_cycle_length_seconds = None
         self.__read_repair_enabled = False
         self.__configuration = None
         self.__configuration_controller = ConfigurationController('nodeserver-%s' % self.id,
                                                                   coordinator_addresses, explicit_configuration,
                                                                   configuration_directory, self.__update_configuration,
                                                                   configuration_update_interval)
-        logging.debug('self.__configuration_controller == %s', self.__configuration_controller)
+        if __debug__: logging.debug('self.__configuration_controller == %s', self.__configuration_controller)
 
     def __initialize_node_client_pool(self):
-        logging.debug('self.__configuration == %s', self.__configuration)
+        if __debug__: logging.debug('self.__configuration == %s', self.__configuration)
         neighbour_nodes = self.__configuration.find_neighbour_nodes_for_node(self.node) if self.node else {}
         new_node_clients = {}
         for node_id, client in self.__node_clients.iteritems():
@@ -59,7 +55,7 @@ class NodeServer(object):
                 client.close()
         for node_id, node in neighbour_nodes.iteritems():
             if node_id not in new_node_clients:
-                new_node_clients[node_id] = service.Client((node.address, node.raw_port), InternalNodeServiceProtocol, tag=node_id)
+                new_node_clients[node_id] = service.Client((node.address, node.port), InternalNodeServiceProtocol, tag=node_id)
         self.__node_clients = new_node_clients
 
     def __update_configuration(self, new_configuration):
@@ -72,8 +68,8 @@ class NodeServer(object):
             deployment = new_configuration.target_deployment
         self.node = deployment.nodes.get(self.id, None) if deployment else None
         self.__read_repair_enabled = deployment.read_repair_enabled if deployment else False
-        self.__background_healing_enabled = deployment.background_healing_enabled if deployment else False
-        self.__background_healing_interval_seconds = deployment.background_healing_interval_seconds if deployment else 0
+        self.__background_repair_enabled = deployment.background_repair_enabled if deployment else False
+        self.__background_repair_interval_seconds = deployment.background_repair_interval_seconds if deployment else 0
         self.__initialize_node_client_pool()
         # TODO: restart servers if addresses changed
 
@@ -96,14 +92,7 @@ class NodeServer(object):
         clients = self.__clients_for_nodes(node_ids)
         return self.__internal_cluster_client.stat(clients, key)
 
-    def __get_timestamp(self, env):
-        try:
-            return timestamper.try_loads(env.get('HTTP_X_TIMESTAMP', None)) or timestamper.now()
-        except ValueError:
-            raise httpserver.BadRequest()
-
     def __clients_for_nodes(self, node_ids):
-        # if __debug__: logging.debug('node_ids: %s', node_ids)
         return [self.__node_clients[node_id] for node_id in node_ids]
 
     def __propagate(self, key, timestamp, value, target_nodes):
@@ -180,60 +169,7 @@ class NodeServer(object):
             callback(timestamp)
         self.__public_get(__get_callback, key)
 
-    def __http_stat_GET(self, start_response, path, body, env):
-        if __debug__: logging.debug('path: %s', path)
-        key = self.__unquote(path)
-        timestamp_a = []
-        def __callback(timestamp):
-            timestamp_a.append(timestamp)
-        self.__public_stat(__callback, key)
-        if timestamp_a[0]:
-            start_response('200 OK', [
-                    ('Content-Type', 'application/octet-stream'),
-                    ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp_a[0]))),
-                    ('X-Timestamp', timestamper.dumps(timestamp_a[0])),
-            ])
-            return [timestamper.dumps(timestamp_a[0])]
-        else:
-            start_response('404 Not Found', [])
-            return ['']
-
-    def __http_values_GET(self, start_response, path, body, env):
-        if __debug__: logging.debug('path: %s', path)
-        key = self.__unquote(path)
-        timestamp_value = []
-        def __callback(timestamp, value):
-            timestamp_value.append((timestamp, value))
-        self.__public_get(__callback, key)
-        timestamp, value = timestamp_value
-        if timestamp and value:
-            start_response('200 OK', [
-                    ('Content-Type', 'application/octet-stream'),
-                    ('Last-Modified', email.utils.formatdate(timestamper.to_seconds(timestamp))),
-                    ('X-Timestamp', timestamper.dumps(timestamp)),
-            ])
-            return [value]
-        else:
-            start_response('404 Not Found', [])
-            return ['']
-
-    def __http_values_POST(self, start_response, path, body, env):
-        if __debug__: logging.debug("path: %s", path)
-        key = self.__unquote(path)
-        value = body.read()
-        timestamp = self.__get_timestamp(env)
-        timestamp_a = []
-        def __callback(result_timestamp):
-            timestamp_a.append(result_timestamp)
-        self.__get_timestamp(env)
-        self.__public_set(__callback, key, timestamp, value)
-        start_response('200 OK', [
-                ('Content-Type', 'application/octet-stream'),
-                ('X-Timestamp', str(timestamp_a[0])),
-        ])
-        return ['']
-
-    def __heal_key(self, key):
+    def __repair_key(self, key):
         node_ids = self.__configuration.find_nodes_for_key(key)
         if self.node.id not in node_ids:
             self.__store.remove(key)
@@ -244,10 +180,10 @@ class NodeServer(object):
                 if new_timestamp > timestamp:
                     self.__store.set(key, new_timestamp, new_value)
 
-    def __heal_store(self):
+    def __repair_store(self):
         if not self.node:
             return
-        if not self.__background_healing_enabled:
+        if not self.__background_repair_enabled:
             return
 
         total_count = self.__store.count()
@@ -256,7 +192,7 @@ class NodeServer(object):
         last_time = start_time
         elapsed_time = 0
 
-        logging.info('Starting store healing. Total %d keys.', total_count)
+        logging.info('Starting store repair. Total %d keys.', total_count)
 
         # TODO: Refactor away this cursor muck
         cursor = self.__store.cursor()
@@ -275,34 +211,34 @@ class NodeServer(object):
                 pass
             if not key:
                 continue
-            self.__heal_key(key)
+            self.__repair_key(key)
             scan_count += 1
             now = time.time()
             if now - last_time > 5.0:
                 last_time = now
                 elapsed_time = now - start_time
-                if __debug__: logging.debug('Store healing in progress. Scanned %d keys. Elapsed time: %s', scan_count, timedelta(seconds=elapsed_time))
+                if __debug__: logging.debug('Store repair in progress. Scanned %d keys. Elapsed time: %s', scan_count, timedelta(seconds=elapsed_time))
             total_count = self.__store.count()
             if total_count == 0:
                 break
             if not self.node:
                 break
-            if not self.__background_healing_enabled:
+            if not self.__background_repair_enabled:
                 break
-            coio.sleep(self.__background_healing_interval_seconds / total_count)
+            coio.sleep(self.__background_repair_interval_seconds / total_count)
 
-        logging.info('Finished store healing. Scanned %d keys. Elapsed time: %s', scan_count, timedelta(seconds=elapsed_time))
+        logging.info('Finished store repair. Scanned %d keys. Elapsed time: %s', scan_count, timedelta(seconds=elapsed_time))
 
-    def __healing_task_loop(self):
+    def __repair_task_loop(self):
         while True:
             start_time = time.time()
             try:
-                self.__heal_store()
+                self.__repair_store()
             except Exception, e:
                 logging.exception(e)
                 pass
             elapsed = time.time() - start_time
-            spare_seconds = self.__background_healing_interval_seconds - elapsed
+            spare_seconds = self.__background_repair_interval_seconds - elapsed
             if spare_seconds > 0:
                 if __debug__: logging.debug('Healing task sleeping %s', timedelta(seconds=spare_seconds))
                 coio.sleep(spare_seconds)
@@ -327,21 +263,13 @@ class NodeServer(object):
             stat=self.__public_stat,
         )
 
-        http_handlers = (
-            ('/values/', {'GET':self.__http_values_GET, 'POST':self.__http_values_POST}),
-            ('/stat/', {'GET':self.__http_stat_GET}),
-            # ('/internal/values/', {'GET':self.__http_internal_values_GET, 'POST':self.__http_internal_values_POST}),
-            # ('/internal/stat/', {'GET':self.__http_internal_stat_GET}),
-        )
+        self.__repair_task = coio.stackless.tasklet(self.__repair_task_loop)()
 
-        self.__healing_task = coio.stackless.tasklet(self.__healing_task_loop)()
-
-        logging.info('Internal API: %s:%s' % (self.node.address, self.node.raw_port))
-        self.__internal_server = service.Server(listener=('', self.node.raw_port),
+        logging.info('Internal API: %s:%s' % (self.node.address, self.node.port))
+        self.__server = service.Server(listener=('', self.node.port),
                                                 services=(internal_service, public_service))
-        self.__internal_server.serve()
+        self.__server.serve()
 
-        logging.info('Public HTTP API: %s:%s' % (self.node.address, self.node.http_port))
-        self.__http_server = httpserver.HttpServer(listener=('', self.node.http_port),
-                                                   handlers=http_handlers)
-        self.__http_server.serve()
+    def stop(self):
+        self.__server.stop()
+        self.__server = None

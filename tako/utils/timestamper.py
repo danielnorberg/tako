@@ -19,7 +19,6 @@ def try_loads(s):
     except TypeError:
         return None
 
-
 def to_seconds(microseconds):
     return microseconds / 1000000.0
 

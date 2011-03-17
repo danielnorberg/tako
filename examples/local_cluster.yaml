@@ -11,23 +11,23 @@ active_deployment: cluster
 deployments:
     cluster:
         read_repair: yes
-        background_healing: yes
-        background_healing_interval: 1d 0:00:00
+        background_repair: yes
+        background_repair_interval: 1d 0:00:00
         hash:
             buckets_per_key: 2
         buckets:
             b1:
-                n1: [localhost, 5711, 4711]
-                n2: [localhost, 5712, 4712]
+                n1: [localhost, 4711]
+                n2: [localhost, 4712]
             b2:
-                n3: [localhost, 5713, 4713]
-                n4: [localhost, 5714, 4714]
+                n3: [localhost, 4713]
+                n4: [localhost, 4714]
             b3:
-                n5: [localhost, 5715, 4715]
-                n6: [localhost, 5716, 4716]
+                n5: [localhost, 4715]
+                n6: [localhost, 4716]
             b4:
-                n7: [localhost, 5717, 4717]
-                n8: [localhost, 5718, 4718]
+                n7: [localhost, 4717]
+                n8: [localhost, 4718]
             b5:
-                n9: [localhost, 5719, 4719]
-                n10: [localhost, 5720, 4720]
+                n9: [localhost, 4719]
+                n10: [localhost, 4720]

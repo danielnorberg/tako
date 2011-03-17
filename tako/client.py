@@ -10,9 +10,9 @@ from utils import debug
 from configurationcontroller import ConfigurationController
 from protocols import PublicNodeServiceProtocol
 
-class ValueNotAvailableException(BaseException):
+class NotAvailableException(BaseException):
     def __init__(self, key):
-        super(ValueNotAvailableException, self).__init__('Value not currently available for key "%s"' % repr(key))
+        super(NotAvailableException, self).__init__('Value not currently available for key "%s"' % repr(key))
         self.key = key
 
 class Client(object):
@@ -35,11 +35,11 @@ class Client(object):
                 client.close()
         for node_id, node in new_nodes.iteritems():
             if node_id not in new_node_clients:
-                new_node_clients[node_id] = service.Client((node.address, node.raw_port), PublicNodeServiceProtocol, tag=node_id)
+                new_node_clients[node_id] = service.Client((node.address, node.port), PublicNodeServiceProtocol, tag=node_id)
         self.__node_clients = new_node_clients
 
     def __update_configuration(self, new_configuration):
-        debug.log(new_configuration)
+        if __debug__: logging.debug(new_configuration)
         self.__configuration = new_configuration
         self.__initialize_node_client_pool()
 
@@ -58,7 +58,7 @@ class Client(object):
         self.__configuration_controller.start()
 
     def disconnect(self):
-        raise Exception('Not implemented')
+        raise NotImplemented()
 
     def connected_node_count(self):
         return len([node_client for node_client in self.__node_clients.itervalues() if node_client.is_connected()])
@@ -73,24 +73,24 @@ class Client(object):
         return self.has_configuration() and self.connected_node_count() > self.total_node_count() / 2.0
 
     def set(self, key, timestamp, value):
-        logging.debug('key = %s, timestamp = %s', key, timestamp)
+        if __debug__: logging.debug('key = %s, timestamp = %s', key, timestamp)
         node_client = self.__client_for_key(key)
         if not node_client:
-            raise ValueNotAvailableException(key)
+            raise NotAvailableException(key)
         return node_client.set(key, timestamp, value)
 
     def get(self, key):
         node_client = self.__client_for_key(key)
         if not node_client:
-            raise ValueNotAvailableException(key)
+            raise NotAvailableException(key)
         result = node_client.get(key)
         if not result:
-            raise ValueNotAvailableException(key)
+            raise NotAvailableException(key)
         timestamp, value = result
         return timestamp or None, value
 
     def stat(self, key):
         node_client = self.__client_for_key(key)
         if not node_client:
-            raise ValueNotAvailableException(key)
+            raise NotAvailableException(key)
         return node_client.stat(key) or None

@@ -1,6 +1,6 @@
 Tako
 ====
-Tako is a distributed key-value data store. It aims to provide high scalability and availability through a shared nothing architecture, data partitioning using consistent hashing, read repair with time stamping, automatic background healing and live migration. An included coordinator server can be used as a single point of configuration to distribute cluster configuration to Tako nodes in a cluster.
+Tako is a distributed key-value data store. It aims to provide high scalability and availability through a shared nothing architecture, data partitioning using consistent hashing, read repair with time stamping, automatic background repair and live migration. An included coordinator server can be used as a single point of configuration to distribute cluster configuration to Tako nodes in a cluster.
 
 Tako includes a http proxy server that can be used to interface with a Tako cluster using normal HTTP GET/POST.
 
@@ -140,9 +140,11 @@ The data in a Tako cluster is partitioned using consistent hashing. This provide
 
 Tako nodes in a cluster are organized into buckets and key/value data is then hashed into these buckets. The nodes in a bucket are mirrors. A only needs to communicate with its mirror nodes and nodes in its neighbor buckets. The number of neighbor buckets has an upper limit of couple of hundreds (depending on the hash configuration parameters) regardless of the size of the cluster, which  ensures that even for massive clusters of thousands or tens of thousands of machines, a node can keep persistent connections to its peers.
 
-Read Repair & Background Healing
+Read Repair & Background Repair
 --------------------------------
-When receiving a request for a value, a node will query its peers for timestamps for that key. If any of its peers has data with a newer timestamp, it will fetch the most recent value from that peer, store it, distribute it to any peers that had older timestamps and return it. The background healing mechanism takes this a step further by simply providing a task that runs on every node and periodically iterating through all key/value pairs of node and applying the above read repair operation. This eliminates the need to use separate logs to keep track of data to distribute and is very robust when compared to other replication mechanisms such as master/slave replication. As part of the background healing, key/values are also garbage collected.
+Key/values are propagated and synchronized in the cluster as part of set or get operations. When receiving a request for a value, a node will query its peers for timestamps for that key. If any of its peers has data with a newer timestamp, it will fetch the most recent value from that peer, store it, distribute it to any peers that had older timestamps and return it.
+
+The background repair mechanism takes this a step further by simply providing a task that runs on every node and periodically iterating through all key/value pairs of node and applying the above read repair operation. This eliminates the need to use separate logs to keep track of data to distribute and is very robust when compared to other replication mechanisms such as master/slave replication. As part of the background repair, key/values are also garbage collected.
 
 
 Operation
@@ -155,16 +157,16 @@ Maintenance
 
 Tako is designed to not need maintenance downtime. However, Tako does not configure itself. Reconfiguring a cluster by e.g. adding nodes to handle more traffic/data or replace broken machines entails modifying the configuration file and either using the coordinator server to distribute the new configuration to all nodes or distributing it manually through other means.
 
-The background healing mechanism cleans out garbage from nodes and distributes data within the cluster. This process, if enabled, is entirely automatic and one only need to take care to let at least one healing cycle run its course between cluster reconfigurations where nodes are removed the ensure that all inserted key/values are preserved. Adding nodes to a cluster can be done at any time without waiting for the healing mechanism to complete.
+The background repair mechanism cleans out garbage from nodes and distributes data within the cluster. This process, if enabled, is entirely automatic and one only need to take care to let at least one repair cycle run its course between cluster reconfigurations where nodes are removed the ensure that all inserted key/values are preserved. Adding nodes to a cluster can be done at any time without waiting for the repair mechanism to complete.
 
 Migration
 ---------
 
 Migration is performed in two steps.
 
-First one includes an extra deployment in the cluster configuration file, giving one *active deployment* and one *target deployment*. The *active deployment* describes the current cluster configuration that one wants to migrate *from* and the *target deployment* describes the new cluster configuration that one wants to migrate *to*. Essentially, this causes two consistent hashes to be used for purposes of data partitioning and routing, request distribution, read repair and background healing. I.e., when looking up the sets of buckets and nodes for a specific key, the union of the lookup results in both consistent hashes is used.
+First one includes an extra deployment in the cluster configuration file, giving one *active deployment* and one *target deployment*. The *active deployment* describes the current cluster configuration that one wants to migrate *from* and the *target deployment* describes the new cluster configuration that one wants to migrate *to*. Essentially, this causes two consistent hashes to be used for purposes of data partitioning and routing, request distribution, read repair and background repair. I.e., when looking up the sets of buckets and nodes for a specific key, the union of the lookup results in both consistent hashes is used.
 
-The second step is to let the background healing mechanism run at least one cycle and then promote the *target deployment* to *active deployment*. The previous *active deployment* can be removed from the configuration file.
+The second step is to let the background repair mechanism run at least one cycle and then promote the *target deployment* to *active deployment*. The previous *active deployment* can be removed from the configuration file.
 
 Usage Reference
 ===============
@@ -187,7 +189,7 @@ Sample Configuration Files
 standalone.yaml
 ---------------
 
-This configuration sets up a single stand-alone node. Read repair and background healing is not possible in this setup and are thus disabled.
+This configuration sets up a single stand-alone node. Read repair and background repair is not possible in this setup and are thus disabled.
 
 ::
 
@@ -198,7 +200,7 @@ This configuration sets up a single stand-alone node. Read repair and background
     deployments:
         standalone:
             read_repair: no
-            background_healing: no
+            background_repair: no
             hash:
                 buckets_per_key: 1
             buckets:
@@ -213,7 +215,7 @@ The replication factor ``buckets_per_key`` is set to 2 which causes every
 key-value pair to be replicated across 2 buckets with 2 nodes for a total
 of 4 nodes.
 
-Both read repair and background healing is enabled, with the background healing scheduled to be performed at 24 hour intervals. Larger data sets typically need larger intervals, otherwise the background healing will take up too much resources simply to go through all the key/value pairs and communicate with peers.
+Both read repair and background repair is enabled, with the background repair scheduled to be performed at 24 hour intervals. Larger data sets typically need larger intervals, otherwise the background repair will take up too much resources simply to go through all the key/value pairs and communicate with peers.
 
 A single coordinator serves the below configuration to the node cluster.
 
@@ -232,8 +234,8 @@ A single coordinator serves the below configuration to the node cluster.
     deployments:
         cluster:
             read_repair: yes
-            background_healing: yes
-            background_healing_interval: 1d 0:00:00
+            background_repair: yes
+            background_repair_interval: 1d 0:00:00
             hash:
                 buckets_per_key: 2
             buckets:
@@ -271,8 +273,8 @@ Like ``cluster.yaml`` but written to run locally on a single machine using ``tak
     deployments:
         cluster:
             read_repair: yes
-            background_healing: yes
-            background_healing_interval: '1d 0:00:00'
+            background_repair: yes
+            background_repair_interval: '1d 0:00:00'
             hash:
                 buckets_per_key: 2
             buckets:

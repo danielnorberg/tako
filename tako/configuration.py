@@ -13,10 +13,8 @@ paths.setup()
 from utils import timestamper
 from models import Coordinator, Deployment
 
-import traceback
-
 def try_load_representation(representation, timestamp=timestamper.now()):
-    logging.debug('timestamp = %s, representation = %s', timestamp, representation)
+    if __debug__: logging.debug('timestamp = %s, representation = %s', timestamp, representation)
     try:
         configuration = Configuration(representation, timestamp)
         return configuration
@@ -50,7 +48,7 @@ def try_load_file(filepath, timestamp=None):
     return try_load_representation(representation, timestamp)
 
 def try_dump_file(filepath, configuration):
-    logging.debug(filepath)
+    if __debug__: logging.debug(filepath)
     try:
         dirpath = os.path.dirname(filepath)
         if not os.path.exists(dirpath):
@@ -68,24 +66,37 @@ def try_dump_file(filepath, configuration):
 def validate_representation(representation):
     # TODO: Complete validation
     # TODO: Validate that node id's are not recycled/nodes are not changed
-    if not 'active_deployment' in representation: raise ValidationError()
-    if not 'deployments' in representation: raise ValidationError()
-    if not len(representation['deployments']) > 0: raise ValidationError()
-    if not representation['active_deployment'] in representation['deployments']: raise ValidationError()
+    if not 'active_deployment' in representation:
+        raise ValidationError('Missing active_deployment.')
+    if not 'deployments' in representation:
+        raise ValidationError('Missing deployments.')
+    if not len(representation['deployments']) > 0:
+        raise ValidationError('deployments list is empty.')
+    active_deployment_id = representation['active_deployment']
+    if not active_deployment_id in representation['deployments']:
+        raise ValidationError('Active deployment %s not present in deployment list.' % active_deployment_id)
     if 'target_deployment' in representation:
-        if not representation['target_deployment'] in representation['deployments']: raise ValidationError()
+        target_deployment_id = representation['target_deployment']
+        if not target_deployment_id in representation['deployments']:
+            raise ValidationError('Target deployment %s not present in deployment list.' % target_deployment_id)
     for deployment_id, deployment in representation['deployments'].iteritems():
-        if not 'buckets' in deployment: raise ValidationError()
+        if not 'buckets' in deployment:
+            raise ValidationError('Missing buckets in deployment %s' % deployment_id)
         for bucket_id, bucket in deployment['buckets'].iteritems():
-            if not len(bucket) > 0: raise ValidationError()
+            if not len(bucket) > 0:
+                raise ValidationError('No nodes in bucket %s in deployment %s' % (bucket_id, deployment_id))
             for node_id, node in bucket.iteritems():
-                if not len(node) == 3: raise ValidationError()
-                address, http_port, raw_port = node
-                if not type(address) == str: raise ValidationError('type(address) == %s != str' % type(address))
-                if not type(http_port) == int: raise ValidationError('type(http_port) == %s != int' % type(http_port))
-                if not type(raw_port) == int: raise ValidationError('type(raw_port) == %s != int' % type(raw_port))
+                if not len(node) == 2:
+                    raise ValidationError('Malformed node %s in bucket %s in deployment %s' % (node_id, bucket_id, deployment_id))
+                address, port = node
+                if not type(address) == str:
+                    raise ValidationError('Malformed node %s in bucket %s in deployment %s' % (node_id, bucket_id, deployment_id))
+                if not type(port) == int:
+                    raise ValidationError('Malformed node %s in bucket %s in deployment %s' % (node_id, bucket_id, deployment_id))
     if 'master_coordinator' in representation:
-        if not representation['master_coordinator'] in representation['coordinators']: raise ValidationError()
+        master_coordinator_id = representation['master_coordinator']
+        if not master_coordinator_id in representation['coordinators']:
+            raise ValidationError('Master coordinator %s not present in coordinators list.' % master_coordinator_id)
     for coordinator_id, coordinator in representation.get('coordinators', {}).iteritems():
         if not len(coordinator) == 2: raise ValidationError()
         address, port = coordinator

@@ -15,12 +15,12 @@ def _connection_from_urlinfo(urlinfo):
     return pool
 
 def fetch(url, tries=3):
-    """docstring for fetch"""
     urlinfo = urlparse(url)
     pool = _connection_from_urlinfo(urlinfo)
     if __debug__: logging.debug('url: %s, tries: %d', url, tries)
     for i in xrange(1, tries):
         try:
+            if __debug__: logging.debug('urlinfo.path: %s', urlinfo.path)
             r = pool.get_url(urlinfo.path)
             return r.data, r.headers
         except IOError, e:
@@ -28,7 +28,6 @@ def fetch(url, tries=3):
             return (None, None)
 
 def post(url, value, headers={}):
-    """docstring for post"""
     urlinfo = urlparse(url)
     pool = _connection_from_urlinfo(urlinfo)
     pool.urlopen('POST', urlinfo.path, body=value, headers=headers)

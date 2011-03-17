@@ -28,7 +28,6 @@ class StoreTest(testcase.TestCase):
         store.close()
 
     def testTransaction(self):
-        """docstring for testTransaction"""
         store = Store(filepath = self.tempfile(), auto_commit_interval=0)
         store.open()
         store.begin()

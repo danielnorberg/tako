@@ -2,7 +2,6 @@
 
 import logging.handlers
 import logging
-import os
 import pprint
 
 def whoami():
@@ -16,17 +15,9 @@ def callersname():
 def pp():
     return pprint.PrettyPrinter(indent=4)
 
-def nop(*args):
-    pass
-
-log = nop
-
 def configure_logging(appname, level=logging.INFO, filename=None):
-    global log
     if level <= logging.DEBUG:
-        log = logging.debug
         format = "%(asctime)-15s %(levelname)s (%(process)d) %(filename)s:%(lineno)d %(funcName)s(): %(message)s"
     else:
-        log = nop
         format="%(asctime)-15s %(levelname)s: %(message)s"
     logging.basicConfig(level=level, filename=filename, format=format)

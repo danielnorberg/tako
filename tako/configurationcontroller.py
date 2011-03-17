@@ -12,7 +12,6 @@ from models import Coordinator
 
 
 class ConfigurationController(object):
-    """docstring for ConfigurationController"""
     def __init__(self, name, coordinator_addresses, explicit_configuration, configuration_cache_directory,
                  update_configuration_callback, update_interval=5*60):
         super(ConfigurationController, self).__init__()
@@ -26,19 +25,19 @@ class ConfigurationController(object):
         self.__update_configuration_callback = None
 
         if configuration_cache_directory:
-            debug.log('Persistent configuration cache enabled.')
+            logging.debug('Persistent configuration cache enabled.')
             self.__configuration_cache = ConfigurationCache(configuration_cache_directory, self.name)
         else:
-            debug.log('No configuration cache directory., persistent configuration cache disabled.')
+            logging.debug('No configuration cache directory., persistent configuration cache disabled.')
 
         self.configuration = None
         if explicit_configuration:
-            debug.log('Using explicit configuration')
+            logging.debug('Using explicit configuration')
             self.__evaluate_new_configuration(explicit_configuration)
         elif self.__configuration_cache:
             cached_configuration = self.__configuration_cache.get_configuration()
             if cached_configuration:
-                debug.log('Using cached configuration')
+                logging.debug('Using cached configuration')
                 self.__evaluate_new_configuration(cached_configuration)
 
         self.__update_configuration_callback = update_configuration_callback

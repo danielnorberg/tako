@@ -1,5 +1,8 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
+import logging
+import random
+
 import pytc as tc
 from syncless import coio
 
@@ -9,13 +12,13 @@ from utils import timestamper
 BUFFER_THRESHOLD = 4096
 
 class Store(object):
-    def __init__(self, filepath, auto_commit_interval=0.5):
+    def __init__(self, filepath, auto_commit_interval=2):
         self.operation_counter = 0
         super(Store, self).__init__()
-        debug.log('filepath: %s', filepath)
+        if __debug__: logging.debug('filepath: %s', filepath)
         self.filepath = filepath
         self.db = tc.BDB()
-        self.db.tune(0, 0, 1024**2*10, 0, -1, 0)
+        self.db.tune(0, 0, 1024**2*10, -1, -1, tc.BDBTLARGE)
         self.flusher = None
         self.auto_commit_interval = auto_commit_interval
         self.pack_timestamp = timestamper.pack
@@ -35,9 +38,10 @@ class Store(object):
         self.db.close()
 
     def __flush(self):
+        coio.sleep(random.random() * self.auto_commit_interval)
         while True:
             if self.operation_counter > 0:
-                debug.log('Committing %d operations', self.operation_counter)
+                if __debug__: logging.debug('Committing %d operations', self.operation_counter)
                 self.commit()
                 self.operation_counter = 0
                 # Close and reopen to free memory allocated by TC
