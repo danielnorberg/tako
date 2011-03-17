@@ -59,7 +59,7 @@ First, download the million song subset. The infochimps mirror might be faster.
 
     http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
 
-Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080. Note: running a sizable tako cluster locally can be resource intensive. Run a smaller cluster if using a machine with limited resources, e.g. a VirtualBox/VMWare instance.
+Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080. Note: running a sizable tako cluster locally is resource intensive. Run a smaller cluster if using a machine with limited resources, e.g. a VirtualBox/VMWare instance. The following test run has been successfully executed on a virtual machine with 4GB ram and 20GB disk. YMMV.
 
 ::
 
@@ -153,6 +153,11 @@ Developing
 ==========
 
 Start out by looking at ``tako/nodeserver.py``, it is the heart of Tako and implements most of the interesting parts of the system.
+
+Stability
+=========
+
+Tako is of pre-alpha quality, built using a lot of unstable components and should not be used in a live system. Tako will locate and delete your most sensitive and critical data as well as cause computers it is installed on to spontaneously combust. Tako installed on servers in data centers is a sign of the coming apocalypse. You have been warned.
 
 Sample Configuration Files
 ==========================
