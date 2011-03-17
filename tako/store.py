@@ -40,6 +40,10 @@ class Store(object):
                 debug.log('Committing %d operations', self.operation_counter)
                 self.commit()
                 self.operation_counter = 0
+                # Close and reopen to free memory allocated by TC
+                # Otherwise memory usage balloons until we run out of memory and get killed
+                self.db.close()
+                self.db.open(self.filepath, tc.BDBOWRITER | tc.BDBOCREAT)
                 self.begin()
             coio.sleep(self.auto_commit_interval)
 
