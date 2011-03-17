@@ -80,14 +80,14 @@ Do this in a second terminal::
     tar xzf millionsongsubset.tar.gz
 
     # Upload the dataset into the Tako cluster
-    for f in `find MillionSongSubset -name '*.h5'`; do wget -nv -O /dev/null --post-file=$f http://localhost:8080/values/$(basename $f); done
+    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -nv -O /dev/null --post-file={} http://localhost:8080/values/{}
 
     # Download the dataset again...
     mkdir fetched
-    for f in `find MillionSongSubset -name '*.h5'`; do wget -P fetched -nv http://localhost:8080/values/$(basename $f); done
+    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -P fetched -nv http://localhost:8080/values/{}
 
-    # ...and compare all the files, making sure that they survived the roundtrip intact.
-    for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
+    # ...and compare all the files. (No output means files are identical)
+    find MillionSongSubset -name '*.h5' | xargs -n1 sh -c 'cmp $0 fetched/$(basename $0)'
 
 Done! Now you can continue experimenting with other data sets. If you want to start over, simply shut down the cluster and remove the ``tako/var`` directory to go back to a clean install or remove the ``tako`` directory to uninstall Tako.
 
