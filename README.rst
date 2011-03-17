@@ -9,6 +9,8 @@ Within a cluster, Tako nodes communicate using a binary protocol and the socketl
 Tako makes use of libev/libevent/kqueue/kpoll if present.
 Tokyo Cabinet is used for data storage.
 
+PyPi Page: http://pypi.python.org/pypi/tako
+
 Getting Started
 ===============
 
