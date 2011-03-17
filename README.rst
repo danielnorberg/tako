@@ -59,9 +59,11 @@ First, download the million song subset. The infochimps mirror might be faster.
 
     http://www.infochimps.com/datasets/the-million-song-dataset-10k-songs-subset
 
-Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080. Note: running a sizable tako cluster locally is resource intensive. Run a smaller cluster if using a machine with limited resources, e.g. a VirtualBox/VMWare instance. The following test run has been successfully executed on a virtual machine with 4GB ram and 20GB disk. YMMV.
+Using tako-cluster we can quickly get a Tako cluster up and running on a single machine. I'll use the local_cluster.yaml with a proxy on port 8080.
 
-::
+Note: running a sizable tako cluster locally uses a lot of disk space. Tako does not currently take well to running out of disk space. The test run below requires around 20GB free disk space.
+
+First download a configuration file from the Tako github repository and start the local cluster::
 
     # Download configuration file
     mkdir etc
@@ -70,14 +72,14 @@ Using tako-cluster we can quickly get a Tako cluster up and running on a single 
     # Start the local tako cluster
     bin/tako-cluster etc/local_cluster.yaml -p 8080
 
-Now we'll populate the Tako cluster using the dataset and then pull it back out again. If you're running a different Tako cluster setup, simply adjust the proxy address and port below.
+Now we'll populate the Tako cluster using the dataset and then pull it back out again. If you're running a different Tako cluster setup, simply adjust the proxy address and port below. (Note: If running a local cluster like this, the performance and throughput suffers so you'll probably want to get a cup of coffee while you wait for the import and export operations to complete.)
 
-::
+Do this in a second terminal::
 
     # Unpack the dataset
     tar xzf millionsongsubset.tar.gz
 
-    # Upload the dataset into the Tako cluster using wget and a Tako proxy
+    # Upload the dataset into the Tako cluster
     for f in `find MillionSongSubset -name '*.h5'`; do wget -nv -O /dev/null --post-file=$f http://localhost:8080/values/$(basename $f); done
 
     # Download the dataset again...
@@ -87,12 +89,32 @@ Now we'll populate the Tako cluster using the dataset and then pull it back out 
     # ...and compare all the files, making sure that they survived the roundtrip intact.
     for f in `find MillionSongSubset -name '*.h5'`; do if cmp $f fetched/$(basename $f); then echo $f: Identical; else echo $f: Differing; fi done
 
-Data Access
-===========
+Done! Now you can continue experimenting with other data sets. If you want to start over, simply shut down the cluster and remove the ``tako/var`` directory to go back to a clean install or remove the ``tako`` directory to uninstall Tako.
 
-Data in a Tako cluster is typically accessed through proxy servers by GET and POST to a URL of the form::
+Thanks for trying out Tako! Let me know if something broke =)
 
-    http://proxy-server.domain:port/values/key
+Proxy Data Access
+=================
+
+Set/Get
+-------
+As illustrated by the *Test Run* walkthrough, data in a Tako cluster can be accessed through a proxy server by GET and POST to a URL of the form::
+
+    http://tako-proxy-server.domain:port/values/key
+
+E.g. for the imaginary key ``/users/8ea83457738064f32db4b1b2bcf3e8b192846d72/playlists/17``:
+
+    http://tako-proxy-server.domain:port/values/users/8ea83457738064f32db4b1b2bcf3e8b192846d72/playlists/17
+
+Stat
+----
+Statting, or just getting the timestamp of a value in the cluster can be done by GET request to this url:
+
+    http://proxy-server.domain:port/stat/key
+
+E.g. for the imaginary key ``/users/8ea83457738064f32db4b1b2bcf3e8b192846d72/playlists/17``:
+
+    http://tako-proxy-server.domain:port/stat/users/8ea83457738064f32db4b1b2bcf3e8b192846d72/playlists/17
 
 
 Key Concepts

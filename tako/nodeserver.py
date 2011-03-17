@@ -127,7 +127,9 @@ class NodeServer(object):
             if latest_timestamp and latest_value:
                 value = latest_value
                 timestamp = latest_timestamp
-                self.__store.set(key, timestamp, value)
+                node_ids = self.__configuration.find_nodes_for_key(key)
+                if self.node.id in node_ids:
+                    self.__store.set(key, timestamp, value)
 
         older = [(client, remote_timestamp) for client, remote_timestamp in remote_timestamps
                  if remote_timestamp != None and remote_timestamp < timestamp]
@@ -208,7 +210,7 @@ class NodeServer(object):
         key = self.__unquote(path)
         value = body.read()
         timestamp = self.__get_timestamp(env)
-        self.public_set(key, timestamp, value)
+        self.__public_set(key, timestamp, value)
         start_response('200 OK', [
                 ('Content-Type', 'application/octet-stream'),
                 ('X-Timestamp', str(timestamp)),
@@ -218,12 +220,10 @@ class NodeServer(object):
     def __heal_key(self, key):
         node_ids = self.__configuration.find_nodes_for_key(key)
         if self.node.id not in node_ids:
-            # logging.debug('Removing: %s', key)
             self.__store.remove(key)
         else:
             timestamp, value = self.__store.get(key)
             if timestamp:
-                # logging.debug('Repairing: %s', key)
                 new_timestamp, new_value = self.__read_repair(key, timestamp, value)
                 if new_timestamp > timestamp:
                     self.__store.set(key, new_timestamp, new_value)
