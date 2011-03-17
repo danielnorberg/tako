@@ -1,6 +1,0 @@
-active_deployment: standalone
-deployments:
-    standalone:
-        buckets:
-            b1:
-                n1: [localhost, 5711, 4711]
