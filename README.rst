@@ -212,9 +212,17 @@ Start out by looking at the node implementation in ``tako/nodeserver.py``, it is
 Limitations
 ===========
 
-In its current incarnation Tako will scale to around ten thousand nodes. This limit is due to the proxy servers keeping an open connection to every node in a cluster. This limitation could be removed e.g. by making the proxies smarter and employ a partitioning scheme in the proxy layer.
+- Scaling
 
-Tako loads whole key-value pairs into RAM, limiting the size of key-values to some fraction of the available RAM.
+  In its current incarnation Tako will scale to around ten thousand nodes. This limit is due to the proxy servers keeping an open connection to every node in a cluster. This limitation could be removed e.g. by making the proxies smarter and employ a partitioning scheme in the proxy layer.
+
+- Value Size
+
+  Currently Tako loads whole key-value pairs into RAM, limiting the size of key-values to some fraction of the available RAM. Don't try to store instances of library of congress, particle accelerator sensor data sets or HD feature films under a single key ;)
+
+- Security
+
+  There's no security built into Tako. It'll happily serve up any and all its data to anybody who connects to the correct port.
 
 
 Stability
