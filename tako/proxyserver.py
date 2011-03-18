@@ -6,7 +6,6 @@ import email.utils
 import paths
 paths.setup()
 
-from utils import debug
 from utils import timestamper
 from utils import httpserver
 
@@ -96,6 +95,12 @@ class ProxyServer(object):
     def serve(self):
         logging.info('Public HTTP API: %s:%s' % self.address)
         self.__client.connect()
-        self.__http_server = httpserver.HttpServer(listener=self.address,
-                                                 handlers=self.__http_handlers)
-        self.__http_server.serve()
+        while True:
+            try:
+                self.__http_server = httpserver.HttpServer(listener=self.address,
+                                                           handlers=self.__http_handlers)
+                self.__http_server.serve()
+            # Workaround for bug in syncless
+            except NameError:
+                pass
+

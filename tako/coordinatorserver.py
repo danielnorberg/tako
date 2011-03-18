@@ -39,5 +39,12 @@ class CoordinatorServer(object):
 
     def serve(self):
         logging.info('http://%s:%s/configuration', self.coordinator.address, self.coordinator.port)
-        self.http_server = httpserver.HttpServer(listener=('', self.coordinator.port), handlers=self.__http_handlers)
-        self.http_server.serve()
+        while True:
+            try:
+                self.http_server = httpserver.HttpServer(listener=('', self.coordinator.port),
+                                                         handlers=self.__http_handlers)
+                self.http_server.serve()
+            # Workaround for bug in syncless
+            except NameError:
+                pass
+
