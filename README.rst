@@ -72,9 +72,9 @@ First download a configuration file from the Tako github repository and start th
     # Start the local tako cluster
     bin/tako-cluster etc/local_cluster.yaml -p 8080
 
-Now we'll populate the Tako cluster using the dataset and then pull it back out again. If you're running a different Tako cluster setup, simply adjust the proxy address and port below. (Note: If running a local cluster like this, the performance and throughput suffers so you'll probably want to get a cup of coffee while you wait for the import and export operations to complete.)
+Now we'll populate the Tako cluster using the dataset and then pull it back out again. If you're running a different Tako cluster setup, simply adjust the proxy address and port below.
 
-Do this in a second terminal::
+Run the following in a second terminal. (You might want to get a cup of coffee while you wait for the import and export operations to complete.)::
 
     # Unpack the dataset
     tar xzf millionsongsubset.tar.gz
@@ -205,7 +205,7 @@ This configuration sets up a single stand-alone node. Read repair and background
                 buckets_per_key: 1
             buckets:
                 b1:
-                    n1: [localhost, 5711, 4711]
+                    n1: [localhost, 4711]
 
 cluster.yaml
 ------------
@@ -240,20 +240,20 @@ A single coordinator serves the below configuration to the node cluster.
                 buckets_per_key: 2
             buckets:
                 b1:
-                    n1:  [tako-node-01.domain, 5711, 4711]
-                    n2:  [tako-node-02.domain, 5711, 4711]
+                    n1:  [tako-node-01.domain, 4711]
+                    n2:  [tako-node-02.domain, 4711]
                 b2:
-                    n3:  [tako-node-03.domain, 5711, 4711]
-                    n4:  [tako-node-04.domain, 5711, 4711]
+                    n3:  [tako-node-03.domain, 4711]
+                    n4:  [tako-node-04.domain, 4711]
                 b3:
-                    n5:  [tako-node-05.domain, 5711, 4711]
-                    n6:  [tako-node-06.domain, 5711, 4711]
+                    n5:  [tako-node-05.domain, 4711]
+                    n6:  [tako-node-06.domain, 4711]
                 b4:
-                    n7:  [tako-node-07.domain, 5711, 4711]
-                    n8:  [tako-node-08.domain, 5711, 4711]
+                    n7:  [tako-node-07.domain, 4711]
+                    n8:  [tako-node-08.domain, 4711]
                 b5:
-                    n9:  [tako-node-09.domain, 5711, 4711]
-                    n10: [tako-node-10.domain, 5711, 4711]
+                    n9:  [tako-node-09.domain, 4711]
+                    n10: [tako-node-10.domain, 4711]
 
 local_cluster.yaml
 ------------------
@@ -279,17 +279,17 @@ Like ``cluster.yaml`` but written to run locally on a single machine using ``tak
                 buckets_per_key: 2
             buckets:
                 b1:
-                    n1: [localhost, 5711, 4711]
-                    n2: [localhost, 5712, 4712]
+                    n1: [localhost, 4711]
+                    n2: [localhost, 4712]
                 b2:
-                    n3: [localhost, 5713, 4713]
-                    n4: [localhost, 5714, 4714]
+                    n3: [localhost, 4713]
+                    n4: [localhost, 4714]
                 b3:
-                    n5: [localhost, 5715, 4715]
-                    n6: [localhost, 5716, 4716]
+                    n5: [localhost, 4715]
+                    n6: [localhost, 4716]
                 b4:
-                    n7: [localhost, 5717, 4717]
-                    n8: [localhost, 5718, 4718]
+                    n7: [localhost, 4717]
+                    n8: [localhost, 4718]
                 b5:
-                    n9: [localhost, 5719, 4719]
-                    n10: [localhost, 5720, 4720]
+                    n9: [localhost, 4719]
+                    n10: [localhost, 4720]
