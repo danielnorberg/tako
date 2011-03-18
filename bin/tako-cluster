@@ -9,11 +9,14 @@ import subprocess
 import sys
 import time
 
+from syncless import coio
+
 prefix = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]), os.pardir, os.pardir))
 sys.path.insert(0, prefix)
 
 from tako import configuration
 from tako.utils import debug
+from tako.client import Client
 
 def makedirs(path):
     if not os.path.exists(path):
@@ -61,8 +64,8 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[],
 
         # Configuration source parameters for nodes and proxies
         cfg_arg = '' if cfg.coordinators else '-cfg %s' % configuration_filepath
-        coordinator_args = ''.join(['-c %s %s' % (coordinator.address, coordinator.port) for
-                                        coordinator in cfg.coordinators.itervalues()])
+        coordinator_addresses = [(coordinator.address, coordinator.port) for coordinator in cfg.coordinators.itervalues()]
+        coordinator_args = ''.join(['-c %s %s' % address for address in coordinator_addresses])
 
 
         logging.info('Starting node processes.')
@@ -115,6 +118,17 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[],
             logging.debug('command: %s', cmd)
         logging.info('Done.')
 
+        logging.info('Waiting for nodes to come up...')
+        if coordinator_addresses:
+            client = Client('tako-cluster-client', coordinator_addresses=coordinator_addresses)
+        else:
+            client = Client('tako-cluster-client', explicit_configuration=cfg)
+        client.connect()
+        while not client.is_connected(complete=True):
+            coio.sleep(1)
+        logging.info('Done.')
+
+        logging.info('Cluster is ready for usage.')
 
         logging.info('Ctrl-C to exit.')
 

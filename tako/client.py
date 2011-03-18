@@ -69,8 +69,11 @@ class Client(object):
     def has_configuration(self):
         return self.__configuration_controller.configuration != None
 
-    def is_connected(self):
-        return self.has_configuration() and self.connected_node_count() > self.total_node_count() / 2.0
+    def is_connected(self, complete=False):
+        if not complete:
+            return self.has_configuration() and self.connected_node_count() > self.total_node_count() / 2.0
+        else:
+            return self.has_configuration() and self.connected_node_count() == self.total_node_count();
 
     def set(self, key, timestamp, value):
         if __debug__: logging.debug('key = %s, timestamp = %s', key, timestamp)
