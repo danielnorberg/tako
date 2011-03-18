@@ -134,7 +134,7 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[],
 
         try:
             while True:
-                time.sleep(1)
+                coio.sleep(1)
         except:
             print
             pass
