@@ -58,7 +58,10 @@ class Client(object):
         self.__configuration_controller.start()
 
     def disconnect(self):
-        raise NotImplemented()
+        self.__configuration_controller.stop()
+        for node_id, client in self.__node_clients.iteritems():
+            client.close()
+        self.__node_clients = None
 
     def connected_node_count(self):
         return len([node_client for node_client in self.__node_clients.itervalues() if node_client.is_connected()])
