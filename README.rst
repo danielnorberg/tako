@@ -156,7 +156,7 @@ Nodes, Proxy, Coordinator
 ---------------------------
 Machines in a Tako cluster are organized into nodes, proxies and coordinator(s).
 
-Nodes store all the data in the cluster. They form the bulk of a Tako cluster and function autonomously, needing only a cluster configuration file to operate fully. Nodes also include an http server enabling each node to double as a data store interface to the entire cluster.
+Nodes store all the data in the cluster. They form the bulk of a Tako cluster and function autonomously, needing only a cluster configuration file to operate fully.
 
 Proxies are used to HTTP POST and GET key-values into and out of the Tako cluster. They act as clients on behalf of external systems, using the internal binary protocol to communicate directly with the actual nodes within the cluster. A typical Tako setup will utilize standard HTTP server load-balancing devices to distribute requests among the set of proxy servers.
 
