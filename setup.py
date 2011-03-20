@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='tako',
-    version='0.0.20',
+    version='0.0.21',
     packages=['tako', 'tako.utils'],
     scripts=[
         'bin/tako-cluster',
@@ -14,7 +14,7 @@ setup(
     ],
 
     install_requires = [
-        'socketless >= 0.3.1',
+        'socketless == 0.3.1',
         'pytc >= 0.8',
         'argparse',
         'pyyaml',
