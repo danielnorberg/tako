@@ -80,11 +80,11 @@ Run the following in a second terminal. (The import and export take few minutes 
     tar xzf millionsongsubset.tar.gz
 
     # Upload the dataset into the Tako cluster
-    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -nv -O /dev/null --post-file={} http://localhost:8080/values/{}
+    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget --retry-connrefused -nv -O /dev/null --post-file={} http://localhost:8080/values/{}
 
     # Download the dataset again...
     mkdir export
-    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -P export -nv http://localhost:8080/values/{}
+    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget --retry-connrefused -P export -nv http://localhost:8080/values/{}
 
     # ...and compare all the files. (No output means files are identical)
     find MillionSongSubset -name '*.h5' | xargs -n1 sh -c 'cmp $0 export/$(basename $0)'
@@ -108,7 +108,7 @@ Now we'll once more export the data set and check the file integrity. (Again, in
 
     # Download again...
     mkdir export
-    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -P export -nv http://localhost:8080/values/{}
+    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget --retry-connrefused -P export -nv http://localhost:8080/values/{}
 
     # ...and check the files again.
     find MillionSongSubset -name '*.h5' | xargs -n1 sh -c 'cmp $0 export/$(basename $0)'
