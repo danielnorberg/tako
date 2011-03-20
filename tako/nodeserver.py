@@ -34,8 +34,9 @@ class NodeServer(object):
         self.__node_clients = {}
         self.__internal_cluster_client = service.MulticastClient(InternalNodeServiceProtocol())
         configuration_directory = os.path.join(var_directory, 'etc')
+        self.__repair_task = None
         self.__background_repair_enabled = False
-        self.__background_repair_cycle_length_seconds = None
+        self.__background_repair_interval_seconds = None
         self.__read_repair_enabled = False
         self.__configuration = None
         self.__configuration_controller = ConfigurationController('nodeserver-%s' % self.id,
