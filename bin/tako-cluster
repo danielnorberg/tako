@@ -67,7 +67,6 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[],
         coordinator_addresses = [(coordinator.address, coordinator.port) for coordinator in cfg.coordinators.itervalues()]
         coordinator_args = ''.join(['-c %s %s' % address for address in coordinator_addresses])
 
-
         logging.info('Starting node processes.')
         node_profiling_arg = lambda nodeid: '-p nodeserver-%s.prof' % nodeid if profiling else ''
         nodes = dict(cfg.active_deployment.nodes)
@@ -94,8 +93,18 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[],
                 processes.append(proc)
                 logging.info('Launched Node "%s" (pid: %d)', node_id, proc.pid)
                 logging.debug('command: %s', cmd)
-
         logging.info('Done.')
+
+        logging.info('Waiting for nodes to come up...')
+        if coordinator_addresses:
+            client = Client('tako-cluster-client', coordinator_addresses=coordinator_addresses)
+        else:
+            client = Client('tako-cluster-client', explicit_configuration=cfg)
+        client.connect()
+        while not client.is_connected(complete=True):
+            coio.sleep(1)
+        logging.info('Done.')
+
         logging.info('Starting proxy processes')
         for i, port in enumerate(proxy_ports):
             proxy_id = 'p%d' % (i + 1)
@@ -116,16 +125,6 @@ def launch(configuration_filepath, profiling=False, debug=False, proxy_ports=[],
             processes.append(proc)
             logging.info('Launched Proxy "%s" (port: %s) (pid: %d)', proxy_id, port, proc.pid)
             logging.debug('command: %s', cmd)
-        logging.info('Done.')
-
-        logging.info('Waiting for nodes to come up...')
-        if coordinator_addresses:
-            client = Client('tako-cluster-client', coordinator_addresses=coordinator_addresses)
-        else:
-            client = Client('tako-cluster-client', explicit_configuration=cfg)
-        client.connect()
-        while not client.is_connected(complete=True):
-            coio.sleep(1)
         logging.info('Done.')
 
         logging.info('Cluster is ready for usage.')

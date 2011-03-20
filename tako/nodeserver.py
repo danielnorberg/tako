@@ -42,21 +42,28 @@ class NodeServer(object):
                                                                   coordinator_addresses, explicit_configuration,
                                                                   configuration_directory, self.__update_configuration,
                                                                   configuration_update_interval)
-        if __debug__: logging.debug('self.__configuration_controller == %s', self.__configuration_controller)
+
 
     def __initialize_node_client_pool(self):
-        if __debug__: logging.debug('self.__configuration == %s', self.__configuration)
-        neighbour_nodes = self.__configuration.find_neighbour_nodes_for_node(self.node) if self.node else {}
-        new_node_clients = {}
+        nodes = self.__configuration.find_neighbour_nodes_for_node(self.node) if self.node else {}
+
+        recycled_node_clients = {}
         for node_id, client in self.__node_clients.iteritems():
-            if node_id in neighbour_nodes:
-                new_node_clients[node_id] = client
+            if node_id in nodes:
+                recycled_node_clients[node_id] = client
             else:
-                client.close()
-        for node_id, node in neighbour_nodes.iteritems():
-            if node_id not in new_node_clients:
+                client.disconnect()
+
+        new_node_clients = {}
+        for node_id, node in nodes.iteritems():
+            if node_id not in recycled_node_clients:
                 new_node_clients[node_id] = service.Client((node.address, node.port), InternalNodeServiceProtocol, tag=node_id)
-        self.__node_clients = new_node_clients
+
+        self.__node_clients = dict(recycled_node_clients, **new_node_clients)
+
+        # Blocking, do this after setting self.__node_clients
+        for client in new_node_clients.itervalues():
+            client.connect()
 
     def __update_configuration(self, new_configuration):
         if __debug__: logging.debug('New configuration: %s', new_configuration)
@@ -125,23 +132,23 @@ class NodeServer(object):
 
         return timestamp, value
 
-    def __internal_get(self, callback, key):
+    def __internal_get(self, key):
         if __debug__: logging.debug('key: %s', key)
         timestamp, value = self.__store.get(key)
-        callback(timestamp or 0, value)
+        return timestamp or 0, value
 
-    def __internal_set(self, callback, key, timestamp, value):
+    def __internal_set(self, key, timestamp, value):
         if __debug__: logging.debug('key: %s', key)
         self.__store.set(key, timestamp, value)
-        callback(timestamp)
+        return timestamp
 
-    def __internal_stat(self, callback, key):
+    def __internal_stat(self, key):
         if __debug__: logging.debug('key: %s', key)
         timestamp, value = self.__store.get(key)
         if __debug__: logging.debug('timestamp: %s', timestamp)
-        callback(timestamp or 0)
+        return timestamp or 0
 
-    def __public_get(self, callback, key):
+    def __public_get(self, key):
         if __debug__: logging.debug("key: %s", key)
         timestamp, value = None, None
         node_ids = self.__configuration.find_nodes_for_key(key)
@@ -152,22 +159,20 @@ class NodeServer(object):
             if new_timestamp > timestamp and self.node.id in node_ids:
                 timestamp, value = new_timestamp, new_value
                 self.__store.set(key, timestamp, value)
-        callback(timestamp or 0, value)
+        return timestamp or 0, value
 
 
-    def __public_set(self, callback, key, timestamp, value):
+    def __public_set(self, key, timestamp, value):
         if __debug__: logging.debug("key: %s", key)
         node_ids = self.__configuration.find_nodes_for_key(key)
         if self.__read_repair_enabled:
             timestamp, value = self.__read_repair(key, timestamp, value, node_ids)
         if self.node.id in node_ids:
             self.__store.set(key, timestamp, value)
-        callback(timestamp)
+        return timestamp
 
-    def __public_stat(self, callback, key):
-        def __get_callback(timestamp, value):
-            callback(timestamp)
-        self.__public_get(__get_callback, key)
+    def __public_stat(self, key):
+        return self.__public_get(key)
 
     def __repair_key(self, key):
         node_ids = self.__configuration.find_nodes_for_key(key)
@@ -240,7 +245,7 @@ class NodeServer(object):
             elapsed = time.time() - start_time
             spare_seconds = self.__background_repair_interval_seconds - elapsed
             if spare_seconds > 0:
-                if __debug__: logging.debug('Healing task sleeping %s', timedelta(seconds=spare_seconds))
+                logging.info('Repair task sleeping %s', timedelta(seconds=spare_seconds))
                 coio.sleep(spare_seconds)
 
     def serve(self):

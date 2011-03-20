@@ -1,6 +1,7 @@
 # -*- Mode: Python; tab-width: 4; indent-tabs-mode: nil; -*-
 
 import logging
+import urllib2
 
 from syncless import coio
 
@@ -9,7 +10,6 @@ paths.setup()
 
 import configuration
 from utils import timestamper
-from utils import http
 
 class CoordinatorClient(object):
     def __init__(self, coordinators=[], callbacks=None, interval=30):
@@ -35,8 +35,9 @@ class CoordinatorClient(object):
 
     def __fetch_configuration(self, coordinator):
         if __debug__: logging.debug('coordinator: %s', coordinator)
-        url = coordinator.configuration_url()
-        body, info = http.fetch(url)
+        stream = urllib2.urlopen(coordinator.configuration_url())
+        body = stream.read()
+        info = stream.info()
         if body:
             if __debug__: logging.debug('Got representation: %s', body)
             new_timestamp = timestamper.try_loads(info.get('x-timestamp', None))

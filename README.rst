@@ -83,11 +83,11 @@ Run the following in a second terminal. (The import and export take few minutes 
     find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -nv -O /dev/null --post-file={} http://localhost:8080/values/{}
 
     # Download the dataset again...
-    mkdir fetched
-    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -P fetched -nv http://localhost:8080/values/{}
+    mkdir export
+    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -P export -nv http://localhost:8080/values/{}
 
     # ...and compare all the files. (No output means files are identical)
-    find MillionSongSubset -name '*.h5' | xargs -n1 sh -c 'cmp $0 fetched/$(basename $0)'
+    find MillionSongSubset -name '*.h5' | xargs -n1 sh -c 'cmp $0 export/$(basename $0)'
 
 If that all worked well we can continue on with experimenting with the reliability of the Tako cluster. First kill all node instances simply by Ctrl-c:ing the tako-cluster. Then we'll simulate the total data loss of a bucket and some mirrors and then mare sure that our data is still intact.::
 
@@ -104,14 +104,14 @@ If that all worked well we can continue on with experimenting with the reliabili
 Now we'll once more export the data set and check the file integrity. (Again, in the second terminal)::
 
     # Clean out old export
-    rm -rf fetched
+    rm -rf export
 
     # Download again...
-    mkdir fetched
-    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -P fetched -nv http://localhost:8080/values/{}
+    mkdir export
+    find MillionSongSubset -name '*.h5' -print0 | xargs -0 -P 8 -I {} wget -P export -nv http://localhost:8080/values/{}
 
     # ...and check the files again.
-    find MillionSongSubset -name '*.h5' | xargs -n1 sh -c 'cmp $0 fetched/$(basename $0)'
+    find MillionSongSubset -name '*.h5' | xargs -n1 sh -c 'cmp $0 export/$(basename $0)'
 
 That should produce the same result as the first time around, all files intact.
 
