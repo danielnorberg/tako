@@ -81,12 +81,6 @@ class NodeServer(object):
         self.__initialize_node_client_pool()
         # TODO: restart servers if addresses changed
 
-    def __quote(self, key):
-        return urllib.quote_plus(key, safe='/&')
-
-    def __unquote(self, path):
-        return urllib.unquote_plus(path)
-
     def __fetch_value(self, key, node_id):
         if __debug__: logging.debug('key: %s, node_id: %s', key, node_id)
         return self.__clients_for_nodes((node_id,))[0].get(key) or (None, None)
